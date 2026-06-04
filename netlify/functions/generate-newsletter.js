@@ -5,7 +5,7 @@ import { getStore } from "@netlify/blobs";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 async function fetchPexelsImage(query) {
-  const key = process.env.pexels_key;
+  const key = process.env.PEXELS_API_KEY;
   if (!key) return null;
   try {
     const res = await fetch(
