@@ -3,7 +3,7 @@ import { getStore } from "@netlify/blobs";
 import crypto from "crypto";
 
 function verifyToken(token) {
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin";
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD1 || "admin";
   const today = new Date().toISOString().slice(0, 10);
   const expected = crypto.createHmac("sha256", ADMIN_PASSWORD).update(today).digest("hex");
   return token === expected;

@@ -11,7 +11,7 @@ export default async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers });
 
   const { password } = await req.json().catch(() => ({}));
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin";
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD1 || "admin";
 
   if (password !== ADMIN_PASSWORD) {
     return new Response(JSON.stringify({ error: "Invalid password" }), { status: 401, headers });
