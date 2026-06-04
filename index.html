@@ -321,6 +321,84 @@
       text-transform: uppercase;
     }
 
+    /* ── save to fern ── */
+    .save-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      padding: 10px 20px;
+      background: var(--ink);
+      color: var(--gold-light);
+      border: 1px solid rgba(200,146,42,.3);
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+    }
+    .save-btn:hover { background: #2a2010; border-color: var(--gold); }
+    .save-btn.saved { color: #6dbf7e; border-color: #6dbf7e; cursor: default; }
+
+    /* modal */
+    .fern-modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.6);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .fern-modal-overlay.open { display: flex; }
+    .fern-modal {
+      background: var(--warm);
+      border: 1px solid var(--border);
+      padding: 40px;
+      max-width: 420px;
+      width: 90%;
+      text-align: center;
+    }
+    .fern-modal h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 24px;
+      font-weight: 400;
+      margin-bottom: 10px;
+    }
+    .fern-modal p { font-size: 15px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
+    .fern-modal input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      background: white;
+      font-family: 'Crimson Pro', serif;
+      font-size: 16px;
+      color: var(--ink);
+      outline: none;
+      margin-bottom: 12px;
+    }
+    .fern-modal-btns { display: flex; gap: 10px; }
+    .fern-modal-btns button {
+      flex: 1;
+      padding: 12px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--ink);
+      transition: background .2s;
+    }
+    .fern-modal-btns button.primary {
+      background: var(--ink);
+      color: var(--gold-light);
+      border-color: var(--ink);
+    }
+    .fern-modal-btns button.primary:hover { background: #2a2010; }
+    #fern-modal-msg { margin-top: 14px; font-size: 14px; font-style: italic; color: var(--gold); min-height: 18px; }
+
     @media (max-width: 640px) {
       .recipe { grid-template-columns: 1fr; gap: 28px; }
       .subscribe-form { flex-direction: column; }
@@ -330,6 +408,21 @@
   </style>
 </head>
 <body>
+
+<!-- Save to Fern modal -->
+<div class="fern-modal-overlay" id="fern-modal">
+  <div class="fern-modal">
+    <h3>Save to Your Fern Cookbook</h3>
+    <p>Enter the email address linked to your Click Pick & Cook account and we'll add this recipe directly to your cookbook shelf.</p>
+    <input type="email" id="fern-email" placeholder="your@email.com" autocomplete="email">
+    <div class="fern-modal-btns">
+      <button onclick="closeFernModal()">Cancel</button>
+      <button class="primary" onclick="confirmSave()">Save Recipe</button>
+    </div>
+    <p id="fern-modal-msg"></p>
+    <p style="margin-top:16px;font-size:12px;color:var(--muted)">Don't have the app? <a href="https://app.clickpickandcook.com" style="color:var(--gold)">Get it free →</a></p>
+  </div>
+</div>
 
 <header class="masthead">
   <p class="masthead-eyebrow">Food · Diet · Culture · Monthly</p>
@@ -411,10 +504,13 @@
           <h3>${r.name}</h3>
           <p class="recipe-desc">${r.description}</p>
           <div class="recipe-tip">💡 ${r.tip}</div>
+          <button class="save-btn" onclick="openFernModal(${i})" id="save-btn-${i}">
+            🌿 Save to My Fern Cookbook
+          </button>
         </div>
         <div class="recipe-right">
           <h4>Ingredients</h4>
-          <ul>${r.ingredients.map(i => `<li>${i}</li>`).join('')}</ul>
+          <ul>${r.ingredients.map(ing => `<li>${ing}</li>`).join('')}</ul>
           <h4>Method</h4>
           <ol>${r.instructions.map(s => `<li>${s}</li>`).join('')}</ol>
         </div>
@@ -473,6 +569,60 @@
 
   document.getElementById('email-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') subscribe();
+  });
+
+  // ── Save to Fern ──
+  let _pendingRecipe = null;
+
+  window.openFernModal = function(index) {
+    _pendingRecipe = index;
+    document.getElementById('fern-modal-msg').textContent = '';
+    document.getElementById('fern-modal').classList.add('open');
+    setTimeout(() => document.getElementById('fern-email').focus(), 100);
+  };
+
+  window.closeFernModal = function() {
+    document.getElementById('fern-modal').classList.remove('open');
+    _pendingRecipe = null;
+  };
+
+  window.confirmSave = async function() {
+    const email = document.getElementById('fern-email').value.trim();
+    const msg = document.getElementById('fern-modal-msg');
+    if (!email) { msg.textContent = 'Please enter your email.'; return; }
+
+    // Get recipe from current newsletter
+    try {
+      const res = await fetch('/.netlify/functions/get-newsletter');
+      const nl = await res.json();
+      const recipe = nl.recipes[_pendingRecipe];
+
+      msg.textContent = 'Saving…';
+      const saveRes = await fetch('/.netlify/functions/save-to-cookbook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, recipe }),
+      });
+      const data = await saveRes.json();
+      msg.textContent = data.message || data.error;
+
+      if (data.success) {
+        const btn = document.getElementById(`save-btn-${_pendingRecipe}`);
+        if (btn) { btn.textContent = '✓ Saved to Cookbook'; btn.classList.add('saved'); btn.onclick = null; }
+        setTimeout(closeFernModal, 2000);
+      }
+    } catch {
+      msg.textContent = 'Something went wrong. Try again.';
+    }
+  };
+
+  document.getElementById('fern-email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmSave();
+  });
+
+  // Close modal on overlay click
+  document.getElementById('fern-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeFernModal();
   });
 
   loadNewsletter();
