@@ -15,7 +15,6 @@ async function fetchPexelsImage(query) {
     const data = await res.json();
     const photos = data.photos || [];
     if (!photos.length) return null;
-    // Pick best aspect ratio for food (~4:3)
     const best = photos.reduce((prev, curr) => {
       const pr = prev.width / prev.height;
       const cr = curr.width / curr.height;
@@ -40,15 +39,16 @@ Return ONLY valid JSON in this exact structure (no markdown, no backticks):
 {
   "subject": "email subject line (engaging, under 60 chars)",
   "tagline": "one punchy sentence for this issue",
-  "hero_image_query": "3-4 word Pexels search query for a beautiful hero food image (e.g. 'fresh farmers market vegetables')",
+  "hero_image_query": "3-4 word Pexels search for a beautiful hero food image (e.g. 'fresh farmers market vegetables')",
   "trends": [
     {
       "title": "trend name",
+      "image_query": "3-4 word Pexels search for this trend (e.g. 'fermented foods jars')",
       "summary": "2-3 sentence description of this food/diet trend.",
       "why_it_matters": "1 sentence on why readers should care"
     },
-    { "title": "...", "summary": "...", "why_it_matters": "..." },
-    { "title": "...", "summary": "...", "why_it_matters": "..." }
+    { "title": "...", "image_query": "...", "summary": "...", "why_it_matters": "..." },
+    { "title": "...", "image_query": "...", "summary": "...", "why_it_matters": "..." }
   ],
   "recipes": [
     {
@@ -87,26 +87,27 @@ Guidelines:
   newsletter.year = year;
   newsletter.generated_at = now.toISOString();
 
-  // Fetch 5 images in parallel: 1 hero + 1 per recipe
+  // Fetch 7 images in parallel: 1 hero + 3 trends + 3 recipes
   console.log("Fetching Pexels images...");
-  const [heroImg, ...recipeImgs] = await Promise.all([
+  const [heroImg, ...rest] = await Promise.all([
     fetchPexelsImage(newsletter.hero_image_query || `${monthName} food seasonal`),
+    ...newsletter.trends.map(t => fetchPexelsImage(t.image_query || t.title)),
     ...newsletter.recipes.map(r => fetchPexelsImage(r.image_query || r.name)),
   ]);
 
-  newsletter.hero_image = heroImg;
-  newsletter.recipes = newsletter.recipes.map((r, i) => ({
-    ...r,
-    image: recipeImgs[i] || null,
-  }));
+  const trendImgs = rest.slice(0, 3);
+  const recipeImgs = rest.slice(3);
 
-  console.log(`Images fetched: hero=${!!heroImg}, recipes=${recipeImgs.filter(Boolean).length}/3`);
+  newsletter.hero_image = heroImg;
+  newsletter.trends = newsletter.trends.map((t, i) => ({ ...t, image: trendImgs[i] || null }));
+  newsletter.recipes = newsletter.recipes.map((r, i) => ({ ...r, image: recipeImgs[i] || null }));
+
+  console.log(`Images: hero=${!!heroImg}, trends=${trendImgs.filter(Boolean).length}/3, recipes=${recipeImgs.filter(Boolean).length}/3`);
 
   const store = getStore("newsletters");
   const key = `${year}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   await store.setJSON(key, newsletter);
   await store.setJSON("latest", newsletter);
-
   console.log(`Newsletter stored: ${key}`);
 }
 

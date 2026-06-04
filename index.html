@@ -631,6 +631,7 @@
 
   const trendsHTML = nl.trends.map((t, i) => `
       <div class="trend-card">
+        ${t.image ? `<img src="${t.image.url}" alt="${t.title}" style="width:100%;height:180px;object-fit:cover;display:block;margin-bottom:16px;">` : ''}
         <h3>${t.title}</h3>
         <p>${t.summary}</p>
         <p class="why">↗ ${t.why_it_matters}</p>
