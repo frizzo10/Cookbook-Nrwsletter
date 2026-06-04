@@ -5,6 +5,9 @@
 [functions]
   node_bundler = "esbuild"
 
+[functions."generate-newsletter"]
+  timeout = 60
+
 # Monthly cron — 1st of every month at 9am UTC
 [[scheduled_functions]]
   name = "generate-newsletter"
