@@ -256,18 +256,63 @@
       text-transform: uppercase;
     }
 
-    /* ── subscribe ── */
-    .subscribe-section {
-      padding: 72px 0;
-      text-align: center;
+    /* ── multi-step signup ── */
+    .signup-steps { max-width: 520px; margin: 0 auto; }
+    .signup-step { display: none; }
+    .signup-step.active { display: block; }
+    .step-fields { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+    .step-fields input, .signup-steps input {
+      width: 100%;
+      padding: 13px 18px;
+      border: 1px solid var(--border);
+      background: white;
+      font-family: 'Crimson Pro', serif;
+      font-size: 16px;
+      color: var(--ink);
+      outline: none;
     }
-    .subscribe-section h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 36px;
-      font-weight: 400;
+    .step-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--muted);
       margin-bottom: 12px;
     }
-    .subscribe-section p { color: var(--muted); font-size: 16px; margin-bottom: 32px; }
+    .pill-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+    .pill {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      background: white;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .pill.active { background: var(--ink); color: var(--gold-light); border-color: var(--ink); }
+    .pill:hover:not(.active) { border-color: var(--gold); color: var(--gold); }
+    .step-btn {
+      margin-top: 24px;
+      padding: 13px 32px;
+      background: var(--ink);
+      color: var(--gold-light);
+      border: none;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .step-btn:hover { background: #2a2010; }
+    .step-dots { display: flex; justify-content: center; gap: 8px; margin-top: 28px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background .2s; }
+    .dot.active { background: var(--gold); }
+
+    /* ── subscribe (old simple form — keep for fallback) ── */
     .subscribe-form {
       display: flex;
       gap: 0;
@@ -298,13 +343,6 @@
       transition: background .2s;
     }
     .subscribe-form button:hover { background: #a87420; }
-    #sub-message {
-      margin-top: 14px;
-      font-size: 14px;
-      font-style: italic;
-      color: var(--gold);
-      min-height: 20px;
-    }
 
     /* ── footer ── */
     footer {
@@ -481,17 +519,71 @@
   </div>
 </main>
 
-<!-- Static subscribe always visible -->
+<!-- Subscribe section -->
 <section class="subscribe-section" id="subscribe">
   <div class="container">
     <p class="section-label">Monthly Delivery</p>
     <h2>Join The Cultured Table</h2>
-    <p>Food trends, recipes, and inspiration — delivered on the 1st of every month.</p>
-    <div class="subscribe-form">
-      <input type="email" id="email-input" placeholder="your@email.com" autocomplete="email">
-      <button onclick="subscribe()">Subscribe</button>
+    <p>Tell us about yourself and we'll personalize every issue — recipes and trends matched to how you eat and cook.</p>
+
+    <div class="signup-steps">
+      <!-- Step 1 -->
+      <div class="signup-step active" id="step-1">
+        <div class="step-fields">
+          <input type="text" id="sub-name" placeholder="Your name" autocomplete="name">
+          <input type="email" id="sub-email" placeholder="your@email.com" autocomplete="email">
+        </div>
+        <button class="step-btn" onclick="goStep2()">Next →</button>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="signup-step" id="step-2">
+        <p class="step-label">How do you eat?</p>
+        <div class="pill-group" id="diet-pills">
+          <button class="pill active" data-value="omnivore">Omnivore</button>
+          <button class="pill" data-value="vegetarian">Vegetarian</button>
+          <button class="pill" data-value="vegan">Vegan</button>
+          <button class="pill" data-value="keto">Keto</button>
+          <button class="pill" data-value="paleo">Paleo</button>
+          <button class="pill" data-value="mediterranean">Mediterranean</button>
+          <button class="pill" data-value="gluten-free">Gluten-Free</button>
+        </div>
+        <p class="step-label" style="margin-top:24px">Cooking skill level?</p>
+        <div class="pill-group" id="skill-pills">
+          <button class="pill" data-value="beginner">Beginner</button>
+          <button class="pill active" data-value="intermediate">Intermediate</button>
+          <button class="pill" data-value="advanced">Advanced</button>
+        </div>
+        <button class="step-btn" onclick="goStep3()">Next →</button>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="signup-step" id="step-3">
+        <p class="step-label">Any allergies or intolerances? (optional)</p>
+        <div class="pill-group" id="allergy-pills">
+          <button class="pill" data-value="nuts">Nuts</button>
+          <button class="pill" data-value="dairy">Dairy</button>
+          <button class="pill" data-value="eggs">Eggs</button>
+          <button class="pill" data-value="shellfish">Shellfish</button>
+          <button class="pill" data-value="soy">Soy</button>
+          <button class="pill" data-value="wheat">Wheat</button>
+          <button class="pill" data-value="none">None</button>
+        </div>
+        <button class="step-btn" onclick="submitSignup()">Subscribe →</button>
+      </div>
+
+      <!-- Done -->
+      <div class="signup-step" id="step-done" style="text-align:center">
+        <p id="sub-message" style="font-size:18px;font-style:italic;color:var(--gold)"></p>
+      </div>
     </div>
-    <p id="sub-message"></p>
+
+    <!-- Step dots -->
+    <div class="step-dots">
+      <span class="dot active" id="dot-1"></span>
+      <span class="dot" id="dot-2"></span>
+      <span class="dot" id="dot-3"></span>
+    </div>
   </div>
 </section>
 
@@ -587,29 +679,76 @@
       </div>`;
   }
 
-  async function subscribe() {
-    const email = document.getElementById('email-input').value.trim();
-    const msg = document.getElementById('sub-message');
-    if (!email) { msg.textContent = 'Please enter your email.'; return; }
+  // ── Multi-step signup ──
+  function setStep(n) {
+    document.querySelectorAll('.signup-step').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.dot').forEach(d => d.classList.remove('active'));
+    document.getElementById(`step-${n}`).classList.add('active');
+    if (document.getElementById(`dot-${n}`)) document.getElementById(`dot-${n}`).classList.add('active');
+  }
 
-    msg.textContent = 'Subscribing…';
+  function getActivePill(groupId) {
+    const active = document.querySelector(`#${groupId} .pill.active`);
+    return active ? active.dataset.value : null;
+  }
+
+  function getActivePills(groupId) {
+    return Array.from(document.querySelectorAll(`#${groupId} .pill.active`)).map(p => p.dataset.value);
+  }
+
+  // Single-select pill groups
+  ['diet-pills', 'skill-pills'].forEach(groupId => {
+    document.getElementById(groupId).addEventListener('click', e => {
+      const pill = e.target.closest('.pill');
+      if (!pill) return;
+      document.querySelectorAll(`#${groupId} .pill`).forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+    });
+  });
+
+  // Multi-select allergy pills
+  document.getElementById('allergy-pills').addEventListener('click', e => {
+    const pill = e.target.closest('.pill');
+    if (!pill) return;
+    if (pill.dataset.value === 'none') {
+      document.querySelectorAll('#allergy-pills .pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+    } else {
+      document.querySelector('#allergy-pills .pill[data-value="none"]')?.classList.remove('active');
+      pill.classList.toggle('active');
+    }
+  });
+
+  window.goStep2 = function() {
+    const email = document.getElementById('sub-email').value.trim();
+    if (!email) { alert('Please enter your email.'); return; }
+    setStep(2);
+  };
+
+  window.goStep3 = function() { setStep(3); };
+
+  window.submitSignup = async function() {
+    const name = document.getElementById('sub-name').value.trim();
+    const email = document.getElementById('sub-email').value.trim();
+    const diet = getActivePill('diet-pills') || 'omnivore';
+    const skill = getActivePill('skill-pills') || 'intermediate';
+    const allergiesRaw = getActivePills('allergy-pills').filter(a => a !== 'none');
+
+    setStep('done');
+    document.getElementById('sub-message').textContent = 'Subscribing…';
+
     try {
       const res = await fetch('/.netlify/functions/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ name, email, diet, skill, allergies: allergiesRaw }),
       });
       const data = await res.json();
-      msg.textContent = data.message || data.error || 'Done!';
-      if (data.success) document.getElementById('email-input').value = '';
+      document.getElementById('sub-message').textContent = data.message || data.error || 'Done!';
     } catch {
-      msg.textContent = 'Something went wrong. Try again.';
+      document.getElementById('sub-message').textContent = 'Something went wrong. Try again.';
     }
-  }
-
-  document.getElementById('email-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') subscribe();
-  });
+  };
 
   // ── Trend article expand ──
   const _articleCache = {};
