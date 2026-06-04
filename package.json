@@ -1,0 +1,10 @@
+{
+  "name": "cultured-table-newsletter",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "The Cultured Table — AI-generated monthly food newsletter",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@netlify/blobs": "^8.1.0"
+  }
+}

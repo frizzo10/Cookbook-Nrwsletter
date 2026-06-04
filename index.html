@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Cultured Table — Monthly Food & Diet Newsletter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #1a1407;
+      --warm: #fffdf5;
+      --parchment: #f5edd8;
+      --gold: #c8922a;
+      --gold-light: #e8c97e;
+      --muted: #7a6e5f;
+      --border: #ddd5c0;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--warm);
+      color: var(--ink);
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 17px;
+      line-height: 1.7;
+    }
+
+    /* ── masthead ── */
+    .masthead {
+      background: var(--ink);
+      padding: 56px 40px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .masthead::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        45deg, transparent, transparent 40px,
+        rgba(200,146,42,.04) 40px, rgba(200,146,42,.04) 41px
+      );
+    }
+    .masthead-eyebrow {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .3em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .masthead h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(42px, 8vw, 76px);
+      font-weight: 400;
+      color: var(--warm);
+      letter-spacing: .01em;
+      line-height: 1.1;
+    }
+    .masthead-tagline {
+      margin-top: 14px;
+      font-family: 'Crimson Pro', serif;
+      font-size: 18px;
+      font-style: italic;
+      color: #a89070;
+    }
+    .ornament {
+      margin: 20px auto 0;
+      color: var(--gold);
+      font-size: 22px;
+      letter-spacing: 10px;
+    }
+
+    /* ── nav strip ── */
+    .nav-strip {
+      background: var(--parchment);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: center;
+      gap: 0;
+    }
+    .nav-strip a {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 14px 28px;
+      border-right: 1px solid var(--border);
+      transition: color .2s, background .2s;
+    }
+    .nav-strip a:first-child { border-left: 1px solid var(--border); }
+    .nav-strip a:hover { color: var(--gold); background: rgba(200,146,42,.06); }
+
+    /* ── layout ── */
+    .container { max-width: 900px; margin: 0 auto; padding: 0 32px; }
+
+    /* ── issue banner ── */
+    .issue-banner {
+      background: var(--parchment);
+      border-bottom: 2px solid var(--gold);
+      padding: 12px 0;
+      text-align: center;
+    }
+    #issue-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: .2em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+
+    /* ── loading / error ── */
+    .loading-state {
+      text-align: center;
+      padding: 100px 32px;
+    }
+    .loading-spinner {
+      width: 36px; height: 36px;
+      border: 2px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── editors note ── */
+    .editors-note {
+      padding: 56px 0 40px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 20px;
+    }
+    .editors-note p {
+      font-size: 19px;
+      font-style: italic;
+      color: #3a3020;
+      line-height: 1.85;
+      max-width: 680px;
+    }
+
+    /* ── trends ── */
+    .trends-section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+    .trends-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 32px;
+      margin-top: 28px;
+    }
+    .trend-card {
+      border-top: 2px solid var(--gold);
+      padding-top: 20px;
+    }
+    .trend-card h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 21px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+    .trend-card p { font-size: 15px; color: #4a3f2f; line-height: 1.75; margin-bottom: 10px; }
+    .trend-card .why { font-size: 13px; color: var(--gold); font-style: italic; }
+
+    /* ── recipes ── */
+    .recipes-section { padding: 48px 0; }
+    .recipes-section > .section-label { margin-bottom: 8px; }
+    .recipes-section > h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 32px;
+      font-weight: 400;
+      margin-bottom: 40px;
+    }
+    .recipe {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      margin-bottom: 56px;
+      padding-bottom: 48px;
+      border-bottom: 1px solid var(--border);
+      animation: fadeUp .5s ease both;
+    }
+    .recipe:last-child { border-bottom: none; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .recipe-meta {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .1em;
+      margin-bottom: 12px;
+    }
+    .recipe h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 400;
+      line-height: 1.25;
+      margin-bottom: 14px;
+    }
+    .recipe-desc { font-size: 16px; color: #4a3f2f; font-style: italic; line-height: 1.75; margin-bottom: 20px; }
+    .recipe-tip {
+      background: var(--parchment);
+      border-left: 3px solid var(--gold);
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .recipe-right h4 {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 12px;
+    }
+    .recipe-right ul, .recipe-right ol {
+      padding-left: 18px;
+      font-size: 15px;
+      color: #3a3020;
+      line-height: 1.85;
+      margin-bottom: 24px;
+    }
+    .recipe-right li { margin-bottom: 4px; }
+
+    /* ── quote ── */
+    .quote-section {
+      background: var(--ink);
+      padding: 64px 40px;
+      text-align: center;
+    }
+    .quote-section blockquote {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(20px, 3vw, 28px);
+      font-style: italic;
+      color: var(--warm);
+      line-height: 1.6;
+      max-width: 680px;
+      margin: 0 auto 16px;
+    }
+    .quote-section cite {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: .2em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+
+    /* ── subscribe ── */
+    .subscribe-section {
+      padding: 72px 0;
+      text-align: center;
+    }
+    .subscribe-section h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 36px;
+      font-weight: 400;
+      margin-bottom: 12px;
+    }
+    .subscribe-section p { color: var(--muted); font-size: 16px; margin-bottom: 32px; }
+    .subscribe-form {
+      display: flex;
+      gap: 0;
+      max-width: 440px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+    }
+    .subscribe-form input {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      background: white;
+      font-family: 'Crimson Pro', serif;
+      font-size: 16px;
+      color: var(--ink);
+      outline: none;
+    }
+    .subscribe-form button {
+      padding: 14px 24px;
+      background: var(--gold);
+      border: none;
+      color: white;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .subscribe-form button:hover { background: #a87420; }
+    #sub-message {
+      margin-top: 14px;
+      font-size: 14px;
+      font-style: italic;
+      color: var(--gold);
+      min-height: 20px;
+    }
+
+    /* ── footer ── */
+    footer {
+      background: var(--parchment);
+      border-top: 1px solid var(--border);
+      padding: 32px 40px;
+      text-align: center;
+    }
+    footer p {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .15em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 640px) {
+      .recipe { grid-template-columns: 1fr; gap: 28px; }
+      .subscribe-form { flex-direction: column; }
+      .subscribe-form button { padding: 14px; }
+      .nav-strip { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="masthead-eyebrow">Food · Diet · Culture · Monthly</p>
+  <h1>The Cultured Table</h1>
+  <p class="masthead-tagline">Seasonal flavors, emerging trends, and recipes worth making</p>
+  <p class="ornament">✦ ✦ ✦</p>
+</header>
+
+<nav class="nav-strip">
+  <a href="#trends">Trends</a>
+  <a href="#recipes">Recipes</a>
+  <a href="#subscribe">Subscribe</a>
+</nav>
+
+<div class="issue-banner">
+  <span id="issue-label">Loading latest issue…</span>
+</div>
+
+<!-- Dynamic content -->
+<main id="newsletter-content">
+  <div class="loading-state">
+    <div class="loading-spinner"></div>
+    <p style="font-style:italic;color:var(--muted)">Preparing this month's issue…</p>
+  </div>
+</main>
+
+<!-- Static subscribe always visible -->
+<section class="subscribe-section" id="subscribe">
+  <div class="container">
+    <p class="section-label">Monthly Delivery</p>
+    <h2>Join The Cultured Table</h2>
+    <p>Food trends, recipes, and inspiration — delivered on the 1st of every month.</p>
+    <div class="subscribe-form">
+      <input type="email" id="email-input" placeholder="your@email.com" autocomplete="email">
+      <button onclick="subscribe()">Subscribe</button>
+    </div>
+    <p id="sub-message"></p>
+  </div>
+</section>
+
+<footer>
+  <p>© The Cultured Table · AI-curated monthly newsletter · Delivered the 1st of every month</p>
+</footer>
+
+<script>
+  async function loadNewsletter() {
+    try {
+      const res = await fetch('/.netlify/functions/get-newsletter');
+      if (!res.ok) throw new Error('No issue yet');
+      const nl = await res.json();
+      renderNewsletter(nl);
+    } catch (e) {
+      document.getElementById('newsletter-content').innerHTML = `
+        <div style="text-align:center;padding:80px 32px">
+          <p style="font-family:'Playfair Display',serif;font-size:24px;color:var(--muted);font-style:italic">
+            The first issue is being prepared…
+          </p>
+          <p style="margin-top:12px;font-size:15px;color:var(--muted)">Subscribe below to be notified when it arrives.</p>
+        </div>`;
+      document.getElementById('issue-label').textContent = 'First issue coming soon';
+    }
+  }
+
+  function renderNewsletter(nl) {
+    document.getElementById('issue-label').textContent =
+      `Vol. 1 · ${nl.month} ${nl.year} Issue`;
+
+    const trendsHTML = nl.trends.map(t => `
+      <div class="trend-card">
+        <h3>${t.title}</h3>
+        <p>${t.summary}</p>
+        <p class="why">↗ ${t.why_it_matters}</p>
+      </div>`).join('');
+
+    const recipesHTML = nl.recipes.map((r, i) => `
+      <article class="recipe" style="animation-delay:${i * .1}s">
+        <div class="recipe-left">
+          <p class="recipe-meta">Prep ${r.prep_time} · Cook ${r.cook_time} · Serves ${r.servings}</p>
+          <h3>${r.name}</h3>
+          <p class="recipe-desc">${r.description}</p>
+          <div class="recipe-tip">💡 ${r.tip}</div>
+        </div>
+        <div class="recipe-right">
+          <h4>Ingredients</h4>
+          <ul>${r.ingredients.map(i => `<li>${i}</li>`).join('')}</ul>
+          <h4>Method</h4>
+          <ol>${r.instructions.map(s => `<li>${s}</li>`).join('')}</ol>
+        </div>
+      </article>`).join('');
+
+    const qParts = nl.quote.split(' — ');
+
+    document.getElementById('newsletter-content').innerHTML = `
+      <section class="editors-note">
+        <div class="container">
+          <p class="section-label">From the Editor</p>
+          <p>${nl.editors_note}</p>
+        </div>
+      </section>
+
+      <section class="trends-section" id="trends">
+        <div class="container">
+          <p class="section-label">This Month's Trends</p>
+          <div class="trends-grid">${trendsHTML}</div>
+        </div>
+      </section>
+
+      <section class="recipes-section" id="recipes">
+        <div class="container">
+          <p class="section-label">Recipes This Issue</p>
+          <h2>Three Dishes Worth Making</h2>
+          ${recipesHTML}
+        </div>
+      </section>
+
+      <div class="quote-section">
+        <blockquote>"${qParts[0]}"</blockquote>
+        <cite>${qParts[1] || 'Unknown'}</cite>
+      </div>`;
+  }
+
+  async function subscribe() {
+    const email = document.getElementById('email-input').value.trim();
+    const msg = document.getElementById('sub-message');
+    if (!email) { msg.textContent = 'Please enter your email.'; return; }
+
+    msg.textContent = 'Subscribing…';
+    try {
+      const res = await fetch('/.netlify/functions/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      msg.textContent = data.message || data.error || 'Done!';
+      if (data.success) document.getElementById('email-input').value = '';
+    } catch {
+      msg.textContent = 'Something went wrong. Try again.';
+    }
+  }
+
+  document.getElementById('email-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') subscribe();
+  });
+
+  loadNewsletter();
+</script>
+</body>
+</html>

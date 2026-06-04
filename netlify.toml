@@ -1,0 +1,11 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Monthly cron — 1st of every month at 9am UTC
+[[scheduled_functions]]
+  name = "generate-newsletter"
+  cron = "0 9 1 * *"
