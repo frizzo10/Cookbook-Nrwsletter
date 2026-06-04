@@ -359,6 +359,21 @@
       text-transform: uppercase;
     }
 
+    /* ── hero & recipe images ── */
+    .hero-image { width: 100%; height: 420px; object-fit: cover; display: block; }
+    .hero-credit {
+      background: var(--ink); padding: 6px 16px; text-align: right;
+      font-family: 'Space Mono', monospace; font-size: 9px;
+      color: rgba(255,255,255,.3); letter-spacing: .1em;
+    }
+    .hero-credit a { color: var(--gold); text-decoration: none; }
+    .recipe-img { width: 100%; height: 200px; object-fit: cover; display: block; margin-bottom: 8px; }
+    .recipe-img-credit {
+      font-family: 'Space Mono', monospace; font-size: 9px;
+      color: var(--muted); letter-spacing: .08em; margin-bottom: 16px;
+    }
+    .recipe-img-credit a { color: var(--gold); text-decoration: none; }
+
     .trend-card .read-more {
       display: inline-block;
       margin-top: 12px;
@@ -629,9 +644,21 @@
         <div class="trend-article" id="article-${i}"></div>
       </div>`).join('');
 
-    const recipesHTML = nl.recipes.map((r, i) => `
+    // Hero image
+    const heroHTML = nl.hero_image ? `
+      <img class="hero-image" src="${nl.hero_image.url}" alt="${nl.month} ${nl.year} — The Cultured Table">
+      <div class="hero-credit">Photo by <a href="${nl.hero_image.photographer_url}" target="_blank">${nl.hero_image.photographer}</a> on Pexels</div>
+    ` : '';
+
+    const recipesHTML = nl.recipes.map((r, i) => {
+      const imgHTML = r.image ? `
+        <img class="recipe-img" src="${r.image.url}" alt="${r.name}">
+        <p class="recipe-img-credit">Photo by <a href="${r.image.photographer_url}" target="_blank">${r.image.photographer}</a> · Pexels</p>
+      ` : '';
+      return `
       <article class="recipe" style="animation-delay:${i * .1}s">
         <div class="recipe-left">
+          ${imgHTML}
           <p class="recipe-meta">Prep ${r.prep_time} · Cook ${r.cook_time} · Serves ${r.servings}</p>
           <h3>${r.name}</h3>
           <p class="recipe-desc">${r.description}</p>
@@ -646,11 +673,13 @@
           <h4>Method</h4>
           <ol>${r.instructions.map(s => `<li>${s}</li>`).join('')}</ol>
         </div>
-      </article>`).join('');
+      </article>`;
+    }).join('');
 
     const qParts = nl.quote.split(' — ');
 
     document.getElementById('newsletter-content').innerHTML = `
+      ${heroHTML}
       <section class="editors-note">
         <div class="container">
           <p class="section-label">From the Editor</p>

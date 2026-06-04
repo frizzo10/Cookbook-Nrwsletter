@@ -57,8 +57,13 @@ function buildEmailHTML(nl, sub) {
   const firstName = (sub.name || "").split(" ")[0] || "";
   const greeting = firstName ? `for ${firstName}` : "";
 
+  const heroImgHTML = nl.hero_image
+    ? `<img src="${nl.hero_image.url}" alt="The Cultured Table ${nl.month} ${nl.year}" style="width:100%;max-height:300px;object-fit:cover;display:block;">`
+    : '';
+
   const recipesHTML = nl.recipes.map((r) => `
     <div style="margin-bottom:32px;border-left:3px solid #c8a96e;padding-left:20px;">
+      ${r.image ? `<img src="${r.image.url}" alt="${r.name}" style="width:100%;height:180px;object-fit:cover;display:block;margin-bottom:14px;margin-left:-20px;width:calc(100% + 20px);">` : ''}
       <h3 style="font-family:'Georgia',serif;font-size:20px;color:#1a1a1a;margin:0 0 6px">${r.name}</h3>
       <p style="font-size:13px;color:#888;margin:0 0 10px">⏱ Prep: ${r.prep_time} · Cook: ${r.cook_time} · Serves ${r.servings}</p>
       <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 14px">${r.description}</p>
@@ -88,6 +93,7 @@ function buildEmailHTML(nl, sub) {
 <body style="margin:0;padding:0;background:#f5f0e8;font-family:Georgia,serif;">
   <div style="max-width:620px;margin:0 auto;background:#fffdf7;">
     <div style="background:#1a1a1a;padding:40px 40px 30px;text-align:center;">
+      ${heroImgHTML}
       ${greeting ? `<p style="font-family:'Courier New',monospace;font-size:11px;color:#a89070;letter-spacing:.15em;text-transform:uppercase;margin:0 0 6px">Personalized ${greeting}</p>` : ""}
       <p style="font-family:'Courier New',monospace;font-size:11px;color:#c8a96e;letter-spacing:.25em;text-transform:uppercase;margin:0 0 12px">Monthly Issue · ${nl.month} ${nl.year}</p>
       <h1 style="font-family:Georgia,serif;font-size:36px;color:#fffdf7;font-weight:400;margin:0 0 10px">The Cultured Table</h1>

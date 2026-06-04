@@ -4,6 +4,30 @@ import { getStore } from "@netlify/blobs";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+async function fetchPexelsImage(query) {
+  const key = process.env.pexels_key;
+  if (!key) return null;
+  try {
+    const res = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=8&orientation=landscape`,
+      { headers: { Authorization: key } }
+    );
+    const data = await res.json();
+    const photos = data.photos || [];
+    if (!photos.length) return null;
+    // Pick best aspect ratio for food (~4:3)
+    const best = photos.reduce((prev, curr) => {
+      const pr = prev.width / prev.height;
+      const cr = curr.width / curr.height;
+      return Math.abs(cr - 1.5) < Math.abs(pr - 1.5) ? curr : prev;
+    });
+    return { url: best.src.large, thumb: best.src.medium, photographer: best.photographer, photographer_url: best.photographer_url };
+  } catch (e) {
+    console.error("Pexels error:", e.message);
+    return null;
+  }
+}
+
 async function generateAndStore() {
   const now = new Date();
   const monthName = now.toLocaleString("en-US", { month: "long" });
@@ -16,6 +40,7 @@ Return ONLY valid JSON in this exact structure (no markdown, no backticks):
 {
   "subject": "email subject line (engaging, under 60 chars)",
   "tagline": "one punchy sentence for this issue",
+  "hero_image_query": "3-4 word Pexels search query for a beautiful hero food image (e.g. 'fresh farmers market vegetables')",
   "trends": [
     {
       "title": "trend name",
@@ -28,6 +53,7 @@ Return ONLY valid JSON in this exact structure (no markdown, no backticks):
   "recipes": [
     {
       "name": "recipe name",
+      "image_query": "3-4 word Pexels search for this dish (e.g. 'avocado toast breakfast')",
       "description": "2 sentence enticing description",
       "prep_time": "X mins",
       "cook_time": "X mins",
@@ -36,8 +62,8 @@ Return ONLY valid JSON in this exact structure (no markdown, no backticks):
       "instructions": ["Step 1", "Step 2"],
       "tip": "one chef tip"
     },
-    { "name": "...", "description": "...", "prep_time": "...", "cook_time": "...", "servings": 4, "ingredients": [], "instructions": [], "tip": "..." },
-    { "name": "...", "description": "...", "prep_time": "...", "cook_time": "...", "servings": 4, "ingredients": [], "instructions": [], "tip": "..." }
+    { "name": "...", "image_query": "...", "description": "...", "prep_time": "...", "cook_time": "...", "servings": 4, "ingredients": [], "instructions": [], "tip": "..." },
+    { "name": "...", "image_query": "...", "description": "...", "prep_time": "...", "cook_time": "...", "servings": 4, "ingredients": [], "instructions": [], "tip": "..." }
   ],
   "quote": "an inspiring food quote — Author Name",
   "editors_note": "2-3 warm sentences from the editor"
@@ -46,6 +72,7 @@ Return ONLY valid JSON in this exact structure (no markdown, no backticks):
 Guidelines:
 - Trends: fermentation, protein diversity, longevity diets, etc.
 - Recipes: one breakfast, one dinner, one dessert — all tied to a trend
+- image_query fields should be specific and visual (food/ingredient focused)
 - Voice: warm, editorial, like Bon Appétit meets a nutritionist`;
 
   const message = await anthropic.messages.create({
@@ -60,12 +87,27 @@ Guidelines:
   newsletter.year = year;
   newsletter.generated_at = now.toISOString();
 
+  // Fetch 5 images in parallel: 1 hero + 1 per recipe
+  console.log("Fetching Pexels images...");
+  const [heroImg, ...recipeImgs] = await Promise.all([
+    fetchPexelsImage(newsletter.hero_image_query || `${monthName} food seasonal`),
+    ...newsletter.recipes.map(r => fetchPexelsImage(r.image_query || r.name)),
+  ]);
+
+  newsletter.hero_image = heroImg;
+  newsletter.recipes = newsletter.recipes.map((r, i) => ({
+    ...r,
+    image: recipeImgs[i] || null,
+  }));
+
+  console.log(`Images fetched: hero=${!!heroImg}, recipes=${recipeImgs.filter(Boolean).length}/3`);
+
   const store = getStore("newsletters");
   const key = `${year}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   await store.setJSON(key, newsletter);
   await store.setJSON("latest", newsletter);
 
-  console.log(`Newsletter generated and stored: ${key}`);
+  console.log(`Newsletter stored: ${key}`);
 }
 
 export default async (req, context) => {
@@ -76,7 +118,6 @@ export default async (req, context) => {
     }
   }
 
-  // Return immediately — run generation in background
   context.waitUntil(generateAndStore());
 
   return new Response(
