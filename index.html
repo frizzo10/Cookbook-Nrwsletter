@@ -321,7 +321,39 @@
       text-transform: uppercase;
     }
 
-    /* ── save to fern ── */
+    .trend-card .read-more {
+      display: inline-block;
+      margin-top: 12px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--gold);
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 0;
+      transition: opacity .2s;
+    }
+    .trend-card .read-more:hover { opacity: .7; }
+    .trend-article {
+      display: none;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 15px;
+      color: #3a3020;
+      line-height: 1.85;
+      animation: fadeUp .3s ease both;
+    }
+    .trend-article.open { display: block; }
+    .trend-article p { margin-bottom: 16px; }
+    .trend-article p:last-child { margin-bottom: 0; }
+    .article-loading {
+      font-style: italic;
+      color: var(--muted);
+      font-size: 14px;
+    }
     .save-btn {
       display: inline-flex;
       align-items: center;
@@ -490,11 +522,19 @@
     document.getElementById('issue-label').textContent =
       `Vol. 1 · ${nl.month} ${nl.year} Issue`;
 
-    const trendsHTML = nl.trends.map(t => `
+  const trendsHTML = nl.trends.map((t, i) => `
       <div class="trend-card">
         <h3>${t.title}</h3>
         <p>${t.summary}</p>
         <p class="why">↗ ${t.why_it_matters}</p>
+        <button class="read-more" onclick="toggleArticle(${i}, this)" 
+          data-title="${encodeURIComponent(t.title)}"
+          data-summary="${encodeURIComponent(t.summary)}"
+          data-month="${nl.month}"
+          data-year="${nl.year}">
+          Read Full Article →
+        </button>
+        <div class="trend-article" id="article-${i}"></div>
       </div>`).join('');
 
     const recipesHTML = nl.recipes.map((r, i) => `
@@ -570,6 +610,57 @@
   document.getElementById('email-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') subscribe();
   });
+
+  // ── Trend article expand ──
+  const _articleCache = {};
+
+  window.toggleArticle = async function(index, btn) {
+    const container = document.getElementById(`article-${index}`);
+    const isOpen = container.classList.contains('open');
+
+    if (isOpen) {
+      container.classList.remove('open');
+      btn.textContent = 'Read Full Article →';
+      return;
+    }
+
+    // Already loaded
+    if (_articleCache[index]) {
+      container.classList.add('open');
+      btn.textContent = 'Collapse ↑';
+      return;
+    }
+
+    // Fetch from API
+    btn.textContent = 'Loading…';
+    container.innerHTML = '<p class="article-loading">Composing the full article…</p>';
+    container.classList.add('open');
+
+    const title = decodeURIComponent(btn.dataset.title);
+    const summary = decodeURIComponent(btn.dataset.summary);
+    const month = btn.dataset.month;
+    const year = btn.dataset.year;
+
+    try {
+      const params = new URLSearchParams({ title, summary, month, year });
+      const res = await fetch(`/.netlify/functions/get-trend-article?${params}`);
+      const data = await res.json();
+
+      if (data.article) {
+        _articleCache[index] = data.article;
+        // Split into paragraphs for clean rendering
+        const paragraphs = data.article.split(/\n+/).filter(p => p.trim());
+        container.innerHTML = paragraphs.map(p => `<p>${p}</p>`).join('');
+        btn.textContent = 'Collapse ↑';
+      } else {
+        container.innerHTML = '<p class="article-loading">Could not load article. Try again.</p>';
+        btn.textContent = 'Read Full Article →';
+      }
+    } catch {
+      container.innerHTML = '<p class="article-loading">Could not load article. Try again.</p>';
+      btn.textContent = 'Read Full Article →';
+    }
+  };
 
   // ── Save to Fern ──
   let _pendingRecipe = null;
