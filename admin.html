@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — The Cultured Table</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Space+Mono:wght@400;700&family=Crimson+Pro:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #1a1407;
+      --warm: #fffdf5;
+      --parchment: #f5edd8;
+      --gold: #c8922a;
+      --gold-light: #e8c97e;
+      --muted: #7a6e5f;
+      --border: #ddd5c0;
+      --success: #4a9e6a;
+      --danger: #b84a3a;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; color: var(--warm); font-family: 'Crimson Pro', serif; min-height: 100vh; }
+
+    /* ── login ── */
+    #login-screen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 32px;
+    }
+    .login-box {
+      background: #1a1407;
+      border: 1px solid rgba(200,146,42,.2);
+      padding: 48px;
+      width: 100%; max-width: 380px;
+      text-align: center;
+    }
+    .login-box h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px; font-weight: 400;
+      color: var(--warm); margin-bottom: 6px;
+    }
+    .login-box p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+    .login-box input {
+      width: 100%; padding: 12px 16px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(200,146,42,.2);
+      color: var(--warm); font-family: 'Space Mono', monospace;
+      font-size: 13px; outline: none; margin-bottom: 12px;
+      letter-spacing: .1em;
+    }
+    .login-box input:focus { border-color: var(--gold); }
+    .login-box button {
+      width: 100%; padding: 12px;
+      background: var(--gold); border: none;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px; letter-spacing: .15em;
+      text-transform: uppercase; color: var(--ink);
+      cursor: pointer; transition: opacity .2s;
+    }
+    .login-box button:hover { opacity: .85; }
+    #login-error { margin-top: 12px; font-size: 13px; color: #e07060; font-style: italic; min-height: 18px; }
+
+    /* ── dashboard ── */
+    #dashboard { display: none; }
+    .topbar {
+      background: #1a1407;
+      border-bottom: 1px solid rgba(200,146,42,.2);
+      padding: 16px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px; font-weight: 400; color: var(--warm);
+    }
+    .topbar-title span { color: var(--gold); font-size: 12px; font-family: 'Space Mono', monospace; letter-spacing: .15em; display: block; }
+    .topbar-logout {
+      font-family: 'Space Mono', monospace; font-size: 10px;
+      letter-spacing: .15em; text-transform: uppercase;
+      color: var(--muted); cursor: pointer; background: none; border: none;
+      transition: color .2s;
+    }
+    .topbar-logout:hover { color: var(--gold); }
+
+    .dashboard-body { padding: 32px; max-width: 1100px; margin: 0 auto; }
+
+    /* ── stats row ── */
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .stat-card {
+      background: #1a1407;
+      border: 1px solid rgba(200,146,42,.15);
+      padding: 24px;
+    }
+    .stat-card .stat-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 42px; color: var(--gold-light); line-height: 1;
+    }
+    .stat-card .stat-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ── section ── */
+    .section { margin-bottom: 32px; }
+    .section-head {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px; letter-spacing: .25em;
+      text-transform: uppercase; color: var(--gold);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(200,146,42,.2);
+    }
+
+    /* ── action buttons ── */
+    .action-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .action-btn {
+      padding: 12px 24px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px; letter-spacing: .15em;
+      text-transform: uppercase; cursor: pointer;
+      border: 1px solid rgba(200,146,42,.3);
+      background: rgba(200,146,42,.08);
+      color: var(--gold-light);
+      transition: all .2s;
+    }
+    .action-btn:hover { background: rgba(200,146,42,.18); border-color: var(--gold); }
+    .action-btn.danger { border-color: rgba(184,74,58,.4); background: rgba(184,74,58,.08); color: #e07060; }
+    .action-btn.danger:hover { background: rgba(184,74,58,.18); }
+    .action-btn:disabled { opacity: .4; cursor: not-allowed; }
+    #action-msg {
+      margin-top: 12px; font-size: 14px;
+      font-style: italic; color: var(--gold-light);
+      min-height: 18px;
+    }
+
+    /* ── diet breakdown ── */
+    .diet-bars { display: flex; flex-direction: column; gap: 10px; }
+    .diet-bar-row { display: flex; align-items: center; gap: 12px; }
+    .diet-bar-label { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); width: 120px; }
+    .diet-bar-track { flex: 1; height: 4px; background: rgba(255,255,255,.08); }
+    .diet-bar-fill { height: 100%; background: var(--gold); transition: width .5s ease; }
+    .diet-bar-count { font-size: 13px; color: var(--gold-light); width: 24px; text-align: right; }
+
+    /* ── subscriber table ── */
+    .sub-table { width: 100%; border-collapse: collapse; }
+    .sub-table th {
+      font-family: 'Space Mono', monospace; font-size: 9px;
+      letter-spacing: .2em; text-transform: uppercase;
+      color: var(--muted); text-align: left;
+      padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .sub-table td {
+      padding: 12px 12px; font-size: 14px; color: #ccc;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      vertical-align: middle;
+    }
+    .sub-table tr:hover td { background: rgba(255,255,255,.02); }
+    .badge {
+      display: inline-block; padding: 2px 8px;
+      font-family: 'Space Mono', monospace; font-size: 9px;
+      letter-spacing: .1em; text-transform: uppercase;
+      border-radius: 2px;
+    }
+    .badge.active { background: rgba(74,158,106,.15); color: #6dbf7e; }
+    .badge.unsub { background: rgba(184,74,58,.15); color: #e07060; }
+    .badge.diet { background: rgba(200,146,42,.12); color: var(--gold-light); }
+    .del-btn {
+      background: none; border: none;
+      color: rgba(184,74,58,.5); cursor: pointer;
+      font-size: 16px; transition: color .2s; padding: 0 4px;
+    }
+    .del-btn:hover { color: #e07060; }
+
+    /* ── issues list ── */
+    .issues-list { display: flex; flex-direction: column; gap: 8px; }
+    .issue-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px;
+      background: rgba(255,255,255,.03);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .issue-row-title { font-size: 15px; color: var(--warm); }
+    .issue-row-date { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); }
+    .view-btn {
+      font-family: 'Space Mono', monospace; font-size: 9px;
+      letter-spacing: .1em; text-transform: uppercase;
+      color: var(--gold); background: none; border: none; cursor: pointer;
+    }
+
+    /* ── loading ── */
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid rgba(200,146,42,.2);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block; vertical-align: middle; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      .stats-row { grid-template-columns: 1fr 1fr; }
+      .dashboard-body { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>The Cultured Table</h1>
+    <p>Admin Panel</p>
+    <input type="password" id="pw-input" placeholder="Password" autocomplete="current-password">
+    <button onclick="login()">Enter</button>
+    <p id="login-error"></p>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-title">
+      The Cultured Table
+      <span>Admin Panel</span>
+    </div>
+    <button class="topbar-logout" onclick="logout()">Log Out</button>
+  </div>
+
+  <div class="dashboard-body">
+
+    <!-- Stats -->
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card"><div class="stat-num" id="stat-total">—</div><div class="stat-label">Total Subscribers</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-active">—</div><div class="stat-label">Active</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-unsub">—</div><div class="stat-label">Unsubscribed</div></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="section">
+      <p class="section-head">Newsletter Controls</p>
+      <div class="action-row">
+        <button class="action-btn" onclick="triggerGenerate()">⚡ Generate This Month's Issue</button>
+        <button class="action-btn" onclick="triggerSend()">📨 Send to All Subscribers</button>
+        <a href="/" target="_blank"><button class="action-btn">👁 View Live Site</button></a>
+      </div>
+      <p id="action-msg"></p>
+    </div>
+
+    <!-- Diet breakdown -->
+    <div class="section">
+      <p class="section-head">Subscriber Diet Breakdown</p>
+      <div class="diet-bars" id="diet-bars">
+        <div style="color:var(--muted);font-style:italic;font-size:14px">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Past issues -->
+    <div class="section">
+      <p class="section-head">Past Issues</p>
+      <div class="issues-list" id="issues-list">
+        <div style="color:var(--muted);font-style:italic;font-size:14px">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Subscribers -->
+    <div class="section">
+      <p class="section-head">Subscribers</p>
+      <div style="overflow-x:auto">
+        <table class="sub-table">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Diet</th>
+              <th>Skill</th>
+              <th>Status</th>
+              <th>Joined</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="sub-tbody">
+            <tr><td colspan="7" style="color:var(--muted);font-style:italic">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let _token = sessionStorage.getItem('admin_token') || '';
+
+  // Auto-login if token exists
+  if (_token) showDashboard();
+
+  async function login() {
+    const pw = document.getElementById('pw-input').value;
+    const err = document.getElementById('login-error');
+    err.textContent = '';
+
+    const res = await fetch('/.netlify/functions/admin-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      _token = data.token;
+      sessionStorage.setItem('admin_token', _token);
+      showDashboard();
+    } else {
+      err.textContent = 'Incorrect password.';
+    }
+  }
+
+  document.getElementById('pw-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') login();
+  });
+
+  function logout() {
+    sessionStorage.removeItem('admin_token');
+    _token = '';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+
+  function showDashboard() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadAll();
+  }
+
+  async function api(action, method = 'GET', body = null) {
+    const url = `/.netlify/functions/admin-api?action=${action}&token=${_token}`;
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify({ ...body, token: _token });
+    const res = await fetch(url, opts);
+    return res.json();
+  }
+
+  async function loadAll() {
+    loadStats();
+    loadSubscribers();
+    loadIssues();
+  }
+
+  async function loadStats() {
+    const data = await api('stats');
+    if (!data) return;
+    document.getElementById('stat-total').textContent = data.total ?? '0';
+    document.getElementById('stat-active').textContent = data.active ?? '0';
+    document.getElementById('stat-unsub').textContent = data.unsubscribed ?? '0';
+
+    // Diet bars
+    const diets = data.diets || {};
+    const total = data.active || 1;
+    const bars = document.getElementById('diet-bars');
+    if (Object.keys(diets).length === 0) {
+      bars.innerHTML = '<div style="color:var(--muted);font-style:italic;font-size:14px">No subscribers yet</div>';
+      return;
+    }
+    bars.innerHTML = Object.entries(diets).sort((a,b) => b[1]-a[1]).map(([diet, count]) => `
+      <div class="diet-bar-row">
+        <span class="diet-bar-label">${diet}</span>
+        <div class="diet-bar-track"><div class="diet-bar-fill" style="width:${Math.round(count/total*100)}%"></div></div>
+        <span class="diet-bar-count">${count}</span>
+      </div>`).join('');
+  }
+
+  async function loadSubscribers() {
+    const data = await api('subscribers');
+    const list = data.subscribers || [];
+    const tbody = document.getElementById('sub-tbody');
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);font-style:italic">No subscribers yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(s => `
+      <tr>
+        <td>${s.email}</td>
+        <td>${s.name || '—'}</td>
+        <td><span class="badge diet">${s.prefs?.diet || 'omnivore'}</span></td>
+        <td style="color:var(--muted);font-size:13px">${s.prefs?.skill || '—'}</td>
+        <td><span class="badge ${s.unsubscribed ? 'unsub' : 'active'}">${s.unsubscribed ? 'Unsubscribed' : 'Active'}</span></td>
+        <td style="color:var(--muted);font-size:12px">${new Date(s.subscribed_at).toLocaleDateString()}</td>
+        <td><button class="del-btn" onclick="deleteSubscriber('${s.email}')" title="Remove">×</button></td>
+      </tr>`).join('');
+  }
+
+  async function loadIssues() {
+    const data = await api('issues');
+    const issues = data.issues || [];
+    const list = document.getElementById('issues-list');
+    if (issues.length === 0) {
+      list.innerHTML = '<div style="color:var(--muted);font-style:italic;font-size:14px">No issues generated yet</div>';
+      return;
+    }
+    list.innerHTML = issues.map(key => {
+      const [year, month] = key.split('-');
+      const date = new Date(parseInt(year), parseInt(month) - 1);
+      const label = date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+      return `<div class="issue-row">
+        <div>
+          <div class="issue-row-title">${label} Issue</div>
+          <div class="issue-row-date">Key: ${key}</div>
+        </div>
+        <button class="view-btn" onclick="window.open('/?issue=${key}','_blank')">View →</button>
+      </div>`;
+    }).join('');
+  }
+
+  async function deleteSubscriber(email) {
+    if (!confirm(`Remove ${email}?`)) return;
+    await api('delete-subscriber', 'POST', { email });
+    loadSubscribers();
+    loadStats();
+  }
+
+  async function triggerGenerate() {
+    const msg = document.getElementById('action-msg');
+    msg.innerHTML = '<span class="spinner"></span> Generating newsletter… (takes ~15s)';
+    const data = await api('generate', 'POST', {});
+    msg.textContent = data.message || data.error || 'Done! Refresh the live site in 30 seconds.';
+    setTimeout(() => loadIssues(), 5000);
+  }
+
+  async function triggerSend() {
+    const msg = document.getElementById('action-msg');
+    if (!confirm('Send this month\'s newsletter to all active subscribers?')) return;
+    msg.innerHTML = '<span class="spinner"></span> Sending…';
+    const data = await api('send', 'POST', {});
+    if (data.sent !== undefined) {
+      msg.textContent = `✓ Sent to ${data.sent} subscribers. ${data.failed ? `${data.failed} failed.` : ''}`;
+    } else {
+      msg.textContent = data.error || 'Done.';
+    }
+  }
+</script>
+</body>
+</html>
