@@ -817,9 +817,12 @@
 
       if (data.article) {
         _articleCache[index] = data.article;
-        // Split into paragraphs for clean rendering
         const paragraphs = data.article.split(/\n+/).filter(p => p.trim());
-        container.innerHTML = paragraphs.map(p => `<p>${p}</p>`).join('');
+        const imgHTML = data.image
+          ? `<img src="${data.image.url}" alt="${title}" style="width:100%;height:220px;object-fit:cover;display:block;margin-bottom:6px;">
+             <p style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.08em;margin-bottom:16px">Photo by <a href="${data.image.photographer_url}" target="_blank" style="color:var(--gold)">${data.image.photographer}</a> · Pexels</p>`
+          : '';
+        container.innerHTML = imgHTML + paragraphs.map(p => `<p>${p}</p>`).join('');
         btn.textContent = 'Collapse ↑';
       } else {
         container.innerHTML = '<p class="article-loading">Could not load article. Try again.</p>';
