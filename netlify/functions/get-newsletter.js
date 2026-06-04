@@ -11,11 +11,15 @@ export default async (req) => {
   if (!nl) {
     return new Response(JSON.stringify({ error: "No newsletter found" }), {
       status: 404,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-cache" },
     });
   }
 
   return new Response(JSON.stringify(nl), {
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+    },
   });
 };

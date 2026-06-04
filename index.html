@@ -609,7 +609,7 @@
 <script>
   async function loadNewsletter() {
     try {
-      const res = await fetch('/.netlify/functions/get-newsletter');
+      const res = await fetch('/.netlify/functions/get-newsletter?t=' + Date.now());
       if (!res.ok) throw new Error('No issue yet');
       const nl = await res.json();
       renderNewsletter(nl);
@@ -852,7 +852,7 @@
 
     // Get recipe from current newsletter
     try {
-      const res = await fetch('/.netlify/functions/get-newsletter');
+      const res = await fetch('/.netlify/functions/get-newsletter?t=' + Date.now());
       const nl = await res.json();
       const recipe = nl.recipes[_pendingRecipe];
 
