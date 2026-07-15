@@ -497,6 +497,7 @@
 <!-- Save to Fern modal -->
 <div class="fern-modal-overlay" id="fern-modal">
   <div class="fern-modal">
+    <div id="fern-modal-preview" style="margin-bottom:16px"></div>
     <h3>Save to Your Fern Cookbook</h3>
     <p>Enter the email address linked to your Click Pick & Cook account and we'll add this recipe directly to your cookbook shelf.</p>
     <input type="email" id="fern-email" placeholder="your@email.com" autocomplete="email">
@@ -670,15 +671,15 @@
 
     const recipesHTML = nl.recipes.map((r, i) => {
       const imgHTML = r.image ? `
-        <img class="recipe-img" src="${r.image.url}" alt="${r.name}">
-        <p class="recipe-img-credit">Photo by <a href="${r.image.photographer_url}" target="_blank">${r.image.photographer}</a> · Pexels</p>
+        <img class="recipe-img" src="${r.image.url}" alt="${r.name}" onclick="openFernModal(${i})" style="cursor:pointer">
+        <p class="recipe-img-credit">Photo by <a href="${r.image.photographer_url}" target="_blank" onclick="event.stopPropagation()">${r.image.photographer}</a> · Pexels</p>
       ` : '';
       return `
       <article class="recipe" style="animation-delay:${i * .1}s">
         <div class="recipe-left">
           ${imgHTML}
           <p class="recipe-meta">Prep ${r.prep_time} · Cook ${r.cook_time} · Serves ${r.servings}</p>
-          <h3>${r.name}</h3>
+          <h3 onclick="openFernModal(${i})" style="cursor:pointer">${r.name}</h3>
           <p class="recipe-desc">${r.description}</p>
           <div class="recipe-tip">💡 ${r.tip}</div>
           <button class="save-btn" onclick="openFernModal(${i})" id="save-btn-${i}">
@@ -891,6 +892,18 @@
   window.openFernModal = function(index) {
     _pendingRecipe = index;
     document.getElementById('fern-modal-msg').textContent = '';
+    document.getElementById('fern-email').value = '';
+    const nl = window._currentNewsletter;
+    const r = nl && nl.recipes && nl.recipes[index];
+    const preview = document.getElementById('fern-modal-preview');
+    if (r) {
+      preview.innerHTML = `
+        ${r.image ? `<img src="${r.image.url}" alt="${r.name}" style="width:100%;height:140px;object-fit:cover;border-radius:8px;display:block;margin-bottom:10px">` : ''}
+        <h4 style="font-family:'Playfair Display',serif;font-size:18px;margin:0 0 4px;color:var(--ink,#1a1a1a)">${r.name}</h4>
+        <p style="font-size:12px;color:var(--muted);margin:0">Prep ${r.prep_time} · Cook ${r.cook_time} · Serves ${r.servings}</p>`;
+    } else {
+      preview.innerHTML = '';
+    }
     document.getElementById('fern-modal').classList.add('open');
     setTimeout(() => document.getElementById('fern-email').focus(), 100);
   };
@@ -951,7 +964,18 @@
   });
 
   const _issueParam = new URLSearchParams(window.location.search).get('issue');
-  loadNewsletter(_issueParam || undefined);
+  const _saveParam = new URLSearchParams(window.location.search).get('save');
+  loadNewsletter(_issueParam || undefined).then(() => {
+    if (_saveParam !== null && !isNaN(parseInt(_saveParam))) {
+      // Deep link from an emailed recipe — jump straight to preview + save.
+      setTimeout(() => {
+        const idx = parseInt(_saveParam);
+        const card = document.querySelectorAll('.recipe')[idx];
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        openFernModal(idx);
+      }, 400);
+    }
+  });
 </script>
 </body>
 </html>
