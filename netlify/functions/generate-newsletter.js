@@ -157,8 +157,17 @@ Guidelines:
 - image_query fields should be specific and visual (food/ingredient focused)
 - Voice: warm, editorial, like Bon Appétit meets a nutritionist`;
 
-  const raw = (await generateText(prompt, 3000)).trim().replace(/```json|```/g, "").trim();
-  const newsletter = JSON.parse(raw);
+  const raw = await generateText(prompt, 6000);
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error(`AI response contained no JSON object. Raw response (first 300 chars): ${raw.slice(0, 300)}`);
+  }
+  let newsletter;
+  try {
+    newsletter = JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    throw new Error(`Failed to parse newsletter JSON (${e.message}). This usually means the response was truncated — raw length was ${raw.length} chars. Last 200 chars: ${raw.slice(-200)}`);
+  }
   newsletter.month = monthName;
   newsletter.year = year;
   newsletter.generated_at = now.toISOString();
