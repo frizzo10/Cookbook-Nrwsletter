@@ -201,19 +201,51 @@ export default async (req) => {
   }
 
   const store = getStore("newsletters");
-  const subStore = getStore("subscribers");
-
   const key = body.key || "latest";
   const nl = await store.get(key, { type: "json" });
   if (!nl) return new Response(JSON.stringify({ error: "Newsletter not found" }), { status: 404 });
+
+  const RESEND_KEY = process.env.RESEND_API_KEY;
+  const FROM = process.env.FROM_EMAIL || "newsletter@cookbookai1.netlify.app";
+
+  // ── Test send: exactly one address, no subscriber list touched ──────
+  if (body.testEmail) {
+    const sub = { email: body.testEmail, name: body.testName || "", prefs: body.testPrefs || {} };
+    try {
+      const personalNl = await personalize(nl, sub);
+      const html = buildEmailHTML(personalNl, sub).replace(
+        "{{unsubscribe_url}}",
+        "#test-send-no-real-unsubscribe-link"
+      );
+      const firstName = (sub.name || "").split(" ")[0];
+      const subjectPrefix = firstName ? `${firstName}, ` : "";
+
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_KEY}` },
+        body: JSON.stringify({
+          from: `The Cultured Table <${FROM}>`,
+          to: body.testEmail,
+          subject: `[TEST] ${subjectPrefix}${nl.subject} · ${nl.month} ${nl.year}`,
+          html,
+        }),
+      });
+      const ok = res.ok;
+      return new Response(JSON.stringify({ sent: ok, to: body.testEmail }), {
+        status: ok ? 200 : 502,
+        headers: { "Content-Type": "application/json" },
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+  }
+
+  const subStore = getStore("subscribers");
 
   const subList = await subStore.get("list", { type: "json" }).catch(() => []);
   if (!subList || subList.length === 0) {
     return new Response(JSON.stringify({ skipped: true, reason: "No subscribers yet" }));
   }
-
-  const RESEND_KEY = process.env.RESEND_API_KEY;
-  const FROM = process.env.FROM_EMAIL || "newsletter@cookbookai1.netlify.app";
 
   let sent = 0, failed = 0;
 
