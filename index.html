@@ -640,6 +640,7 @@
   }
 
   function renderNewsletter(nl, isArchived) {
+    window._currentNewsletter = nl; // so Save-to-Cookbook references whatever's actually on screen
     document.getElementById('issue-label').innerHTML = isArchived
       ? `Vol. 1 · ${nl.month} ${nl.year} Issue <span style="opacity:.7;font-style:italic">(archived — <a href="#" onclick="loadNewsletter();showMain();return false;" style="color:inherit;text-decoration:underline">back to latest issue</a>)</span>`
       : `Vol. 1 · ${nl.month} ${nl.year} Issue`;
@@ -904,12 +905,17 @@
     const msg = document.getElementById('fern-modal-msg');
     if (!email) { msg.textContent = 'Please enter your email.'; return; }
 
-    // Get recipe from current newsletter
-    try {
-      const res = await fetch('/.netlify/functions/get-newsletter?t=' + Date.now());
-      const nl = await res.json();
-      const recipe = nl.recipes[_pendingRecipe];
+    // Use whatever issue is actually on screen — not always "latest".
+    // Without this, saving from an archived issue would silently save the
+    // wrong recipe (whatever's at that position in the current latest issue).
+    const nl = window._currentNewsletter;
+    if (!nl || !nl.recipes || !nl.recipes[_pendingRecipe]) {
+      msg.innerHTML = 'Something went wrong loading this recipe. Please refresh and try again.';
+      return;
+    }
+    const recipe = nl.recipes[_pendingRecipe];
 
+    try {
       msg.textContent = 'Saving…';
       const saveRes = await fetch('/.netlify/functions/save-to-cookbook', {
         method: 'POST',
@@ -917,12 +923,18 @@
         body: JSON.stringify({ email, recipe }),
       });
       const data = await saveRes.json();
-      msg.textContent = data.message || data.error;
 
       if (data.success) {
+        msg.textContent = data.message || 'Saved!';
         const btn = document.getElementById(`save-btn-${_pendingRecipe}`);
         if (btn) { btn.textContent = '✓ Saved to Cookbook'; btn.classList.add('saved'); btn.onclick = null; }
         setTimeout(closeFernModal, 2000);
+      } else if (saveRes.status === 404) {
+        // No Fern account found for that email — give a real clickable CTA
+        // instead of a plain-text error the reader has to copy by hand.
+        msg.innerHTML = 'No Fern account found for that email.<br><a href="https://app.clickpickandcook.com" target="_blank" style="display:inline-block;margin-top:10px;background:#1C3A1A;color:#F0E0B0;padding:.5rem 1.2rem;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">🌿 Get the Fern App →</a>';
+      } else {
+        msg.textContent = data.error || 'Something went wrong. Try again.';
       }
     } catch {
       msg.textContent = 'Something went wrong. Try again.';
