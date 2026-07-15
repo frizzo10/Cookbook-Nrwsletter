@@ -1,13 +1,13 @@
 # The Cultured Table — Monthly Food Newsletter
 
-AI-generated monthly newsletter covering food trends and recipes, auto-delivered by email.
+Monthly newsletter covering food trends and recipes, written by Fern and auto-delivered by email.
 
 ## Architecture
 - **Frontend**: `index.html` — editorial landing page showing latest issue
 - **Functions**: Netlify serverless functions
 - **Storage**: Netlify Blobs (newsletter content + subscriber list)
 - **Email**: Resend (free tier covers ~3,000 emails/month)
-- **AI**: Claude (Anthropic) generates all content
+- **AI**: Groq (Qwen) generates all content, written in Fern's voice, with Gemini as fallback
 - **Schedule**: Auto-runs on the 1st of every month at 9am UTC
 
 ## Setup (One-time)
@@ -25,7 +25,8 @@ Go to **Site Settings → Environment Variables** and add:
 
 | Variable | Value |
 |----------|-------|
-| `ANTHROPIC_API_KEY` | Your Anthropic API key |
+| `GROQ_API_KEY` | Your Groq API key (Qwen model) |
+| `GEMINI_API_KEY` | Your Gemini API key (fallback if Groq fails) |
 | `RESEND_API_KEY` | Your Resend API key (free at resend.com) |
 | `FROM_EMAIL` | e.g. `newsletter@yourdomain.com` (must be verified in Resend) |
 | `CRON_SECRET` | Any random string, e.g. `super-secret-cron-key-2024` |
