@@ -519,6 +519,7 @@
 <nav class="nav-strip">
   <a href="#trends">Trends</a>
   <a href="#recipes">Recipes</a>
+  <a href="#" id="archive-link" onclick="showArchive();return false;">Archive</a>
   <a href="#subscribe">Subscribe</a>
 </nav>
 
@@ -531,6 +532,17 @@
   <div class="loading-state">
     <div class="loading-spinner"></div>
     <p style="font-style:italic;color:var(--muted)">Preparing this month's issue…</p>
+  </div>
+</main>
+
+<!-- Archive listing (hidden until 'Archive' nav link is clicked) -->
+<main id="archive-content" style="display:none">
+  <div class="container" style="padding:48px 32px;max-width:640px;margin:0 auto">
+    <p class="section-label">The Full Collection</p>
+    <h2 style="font-family:'Playfair Display',serif;margin-bottom:24px">Past Issues</h2>
+    <div id="archive-list" style="display:flex;flex-direction:column;gap:10px">
+      <p style="color:var(--muted);font-style:italic">Loading past issues…</p>
+    </div>
   </div>
 </main>
 
@@ -607,12 +619,13 @@
 </footer>
 
 <script>
-  async function loadNewsletter() {
+  async function loadNewsletter(key) {
     try {
-      const res = await fetch('/.netlify/functions/get-newsletter?t=' + Date.now());
+      const qs = key ? `key=${encodeURIComponent(key)}&t=${Date.now()}` : `t=${Date.now()}`;
+      const res = await fetch('/.netlify/functions/get-newsletter?' + qs);
       if (!res.ok) throw new Error('No issue yet');
       const nl = await res.json();
-      renderNewsletter(nl);
+      renderNewsletter(nl, !!key);
     } catch (e) {
       document.getElementById('newsletter-content').innerHTML = `
         <div style="text-align:center;padding:80px 32px">
@@ -625,9 +638,11 @@
     }
   }
 
-  function renderNewsletter(nl) {
-    document.getElementById('issue-label').textContent =
-      `Vol. 1 · ${nl.month} ${nl.year} Issue`;
+  function renderNewsletter(nl, isArchived) {
+    document.getElementById('issue-label').innerHTML = isArchived
+      ? `Vol. 1 · ${nl.month} ${nl.year} Issue <span style="opacity:.7;font-style:italic">(archived — <a href="#" onclick="loadNewsletter();showMain();return false;" style="color:inherit;text-decoration:underline">back to latest issue</a>)</span>`
+      : `Vol. 1 · ${nl.month} ${nl.year} Issue`;
+    showMain();
 
   const trendsHTML = nl.trends.map((t, i) => `
       <div class="trend-card">
@@ -709,7 +724,41 @@
       </div>`;
   }
 
-  // ── Multi-step signup ──
+  function showMain() {
+    document.getElementById('newsletter-content').style.display = '';
+    document.getElementById('archive-content').style.display = 'none';
+  }
+
+  function keyToLabel(key) {
+    const [y, m] = key.split('-');
+    const d = new Date(parseInt(y), parseInt(m) - 1, 1);
+    return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  async function showArchive() {
+    document.getElementById('newsletter-content').style.display = 'none';
+    document.getElementById('archive-content').style.display = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const list = document.getElementById('archive-list');
+    try {
+      const res = await fetch('/.netlify/functions/list-issues?t=' + Date.now());
+      const data = await res.json();
+      const issues = data.issues || [];
+      if (!issues.length) {
+        list.innerHTML = '<p style="color:var(--muted);font-style:italic">No past issues yet — check back after next month\'s issue!</p>';
+        return;
+      }
+      list.innerHTML = issues.map(key => `
+        <a href="#" onclick="loadNewsletter('${key}');return false;"
+           style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border:1px solid var(--border,#e5ddd0);border-radius:10px;text-decoration:none;color:inherit;font-family:'Playfair Display',serif;font-size:17px;transition:background .15s"
+           onmouseover="this.style.background='rgba(0,0,0,.02)'" onmouseout="this.style.background=''">
+          <span>${keyToLabel(key)}</span>
+          <span style="opacity:.5;font-family:inherit;font-size:14px">Read issue →</span>
+        </a>`).join('');
+    } catch (e) {
+      list.innerHTML = '<p style="color:var(--muted);font-style:italic">Couldn\'t load past issues right now.</p>';
+    }
+  }
   function setStep(n) {
     document.querySelectorAll('.signup-step').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.dot').forEach(d => d.classList.remove('active'));
@@ -888,7 +937,8 @@
     if (e.target === this) closeFernModal();
   });
 
-  loadNewsletter();
+  const _issueParam = new URLSearchParams(window.location.search).get('issue');
+  loadNewsletter(_issueParam || undefined);
 </script>
 </body>
 </html>
