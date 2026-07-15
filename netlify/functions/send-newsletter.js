@@ -90,8 +90,17 @@ Rules:
 
 Return JSON with keys: trends (array of 3), recipes (array of 3), editors_note (string)`;
 
-  const raw = (await generateText(prompt, 3000)).trim().replace(/```json|```/g, "").trim();
-  const personalized = JSON.parse(raw);
+  const raw = await generateText(prompt, 6000);
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error(`Personalization AI response contained no JSON object. Raw (first 300 chars): ${raw.slice(0, 300)}`);
+  }
+  let personalized;
+  try {
+    personalized = JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    throw new Error(`Failed to parse personalized JSON (${e.message}). Raw length was ${raw.length} chars.`);
+  }
 
   return {
     ...nl,
