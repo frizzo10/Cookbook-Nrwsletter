@@ -1,8 +1,68 @@
 // netlify/functions/generate-newsletter.js
-import Anthropic from "@anthropic-ai/sdk";
 import { getStore } from "@netlify/blobs";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// ── AI: Groq (Qwen) primary, Gemini fallback ─────────────────────────
+// Matches the model used across the rest of the Fern ecosystem (Fern AI's
+// ai.js and Alexa skill): qwen/qwen3.6-27b on Groq with reasoning_effort:
+// 'none' (required — without it, thinking-mode output can leak into the
+// response). Falls back to Gemini if Groq fails or returns empty, since
+// Gemini runs on separate infrastructure.
+async function callGroqQwen(prompt, maxTokens) {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return { ok: false, error: "no GROQ_API_KEY configured" };
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify({
+        model: "qwen/qwen3.6-27b",
+        reasoning_effort: "none",
+        max_tokens: maxTokens,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error?.message || `Groq error ${res.status}` };
+    const msg = data.choices?.[0]?.message || {};
+    const text = (msg.content && msg.content.trim()) || msg.reasoning || "";
+    return { ok: true, text };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function callGeminiFallback(prompt, maxTokens) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return { ok: false, error: "no GEMINI_API_KEY configured" };
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
+        }),
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error?.message || `Gemini error ${res.status}` };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    return { ok: true, text };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function generateText(prompt, maxTokens) {
+  const primary = await callGroqQwen(prompt, maxTokens);
+  if (primary.ok && primary.text.trim()) return primary.text;
+  console.error("[generate-newsletter] Qwen failed (" + (primary.error || "empty") + "), falling back to Gemini");
+  const fallback = await callGeminiFallback(prompt, maxTokens);
+  if (fallback.ok && fallback.text.trim()) return fallback.text;
+  throw new Error(`Both Qwen and Gemini failed. Qwen: ${primary.error || "empty response"}. Gemini: ${fallback.error || "empty response"}.`);
+}
 
 async function fetchPexelsImage(query) {
   const key = process.env.PEXELS_API_KEY;
@@ -97,13 +157,7 @@ Guidelines:
 - image_query fields should be specific and visual (food/ingredient focused)
 - Voice: warm, editorial, like Bon Appétit meets a nutritionist`;
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 3000,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const raw = message.content[0].text.trim().replace(/```json|```/g, "").trim();
+  const raw = (await generateText(prompt, 3000)).trim().replace(/```json|```/g, "").trim();
   const newsletter = JSON.parse(raw);
   newsletter.month = monthName;
   newsletter.year = year;
@@ -141,7 +195,21 @@ export default async (req, context) => {
     }
   }
 
-  context.waitUntil(generateAndStore());
+  context.waitUntil(
+    generateAndStore().catch(async (err) => {
+      console.error("Newsletter generation FAILED:", err.message, err.stack);
+      // Record the failure so it's visible in the admin panel instead of
+      // silently vanishing — this is exactly the class of bug that let a
+      // retired model ID go unnoticed for a month.
+      try {
+        const store = getStore("newsletters");
+        await store.setJSON("last_error", {
+          message: err.message,
+          at: new Date().toISOString(),
+        });
+      } catch (e2) { console.error("Also failed to record error:", e2.message); }
+    })
+  );
 
   return new Response(
     JSON.stringify({ success: true, message: "Newsletter generation started. Refresh site in 30 seconds." }),
