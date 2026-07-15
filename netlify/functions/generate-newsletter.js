@@ -31,9 +31,31 @@ async function generateAndStore() {
   const now = new Date();
   const monthName = now.toLocaleString("en-US", { month: "long" });
   const year = now.getFullYear();
+  const monthNum = now.getMonth() + 1; // 1-12
 
-  const prompt = `You are the editor of "The Cultured Table" — a premium monthly food and diet newsletter. 
+  // Northern hemisphere seasons (readership is US-based per the app's audience)
+  const seasonMap = {
+    12: "winter", 1: "winter", 2: "winter",
+    3: "spring", 4: "spring", 5: "spring",
+    6: "summer", 7: "summer", 8: "summer",
+    9: "fall", 10: "fall", 11: "fall"
+  };
+  const season = seasonMap[monthNum];
+  const seasonalProduceHint = {
+    winter: "citrus, root vegetables, winter squash, braises, warming spices, hearty stews",
+    spring: "asparagus, peas, spring onions, strawberries, artichokes, light and fresh preparations",
+    summer: "tomatoes, corn, stone fruit, berries, zucchini, grilling, no-cook and chilled dishes",
+    fall: "apples, pumpkin, squash, mushrooms, root vegetables, roasting, cozy comfort food"
+  }[season];
+
+  const prompt = `You are the editor of "The Cultured Table" — a premium monthly food and diet newsletter.
 Generate a complete newsletter for ${monthName} ${year}.
+
+SEASONAL CONTEXT — this issue must feel like it belongs to this exact moment in the year:
+- Current season: ${season} (Northern Hemisphere)
+- Produce and themes actually in season right now: ${seasonalProduceHint}
+- Trends and recipes should reflect what's genuinely good, fresh, or culturally relevant in ${monthName} — not generic content that could run in any month. Reference the season naturally (ingredients, weather-appropriate cooking methods, relevant holidays or cultural moments if any fall in ${monthName}).
+- Avoid suggesting out-of-season produce (e.g. no fresh stone fruit in winter, no heavy braises in peak summer) unless intentionally framed as a pantry/frozen/preserved angle.
 
 Return ONLY valid JSON in this exact structure (no markdown, no backticks):
 {
@@ -70,8 +92,8 @@ Return ONLY valid JSON in this exact structure (no markdown, no backticks):
 }
 
 Guidelines:
-- Trends: fermentation, protein diversity, longevity diets, etc.
-- Recipes: one breakfast, one dinner, one dessert — all tied to a trend
+- Trends should feel current to ${season} specifically — not generic year-round content (e.g. lean into what's actually being cooked/discussed in ${monthName}: seasonal produce peaks, weather-driven cooking styles, any relevant holidays or cultural food moments)
+- Recipes: one breakfast, one dinner, one dessert — all tied to a trend, and all using ingredients realistically in season in ${monthName}
 - image_query fields should be specific and visual (food/ingredient focused)
 - Voice: warm, editorial, like Bon Appétit meets a nutritionist`;
 
@@ -90,7 +112,7 @@ Guidelines:
   // Fetch 7 images in parallel: 1 hero + 3 trends + 3 recipes
   console.log("Fetching Pexels images...");
   const [heroImg, ...rest] = await Promise.all([
-    fetchPexelsImage(newsletter.hero_image_query || `${monthName} food seasonal`),
+    fetchPexelsImage(newsletter.hero_image_query || `${season} ${monthName} food seasonal`),
     ...newsletter.trends.map(t => fetchPexelsImage(t.image_query || t.title)),
     ...newsletter.recipes.map(r => fetchPexelsImage(r.image_query || r.name)),
   ]);
