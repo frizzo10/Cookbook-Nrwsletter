@@ -52,8 +52,8 @@ export default async (req) => {
 
   // GET past issues list
   if (action === "issues") {
-    const { keys } = await nlStore.list().catch(() => ({ keys: [] }));
-    const issueKeys = (keys || []).filter(k => k.name !== "latest").map(k => k.name).sort().reverse();
+    const { blobs } = await nlStore.list().catch(() => ({ blobs: [] }));
+    const issueKeys = (blobs || []).map(b => b.key).filter(k => k !== "latest" && k !== "last_error").sort().reverse();
     return new Response(JSON.stringify({ issues: issueKeys }), { headers });
   }
 
