@@ -111,7 +111,7 @@ export default async (req) => {
   } catch {}
 
   // Generate article + fetch image in parallel
-  const prompt = `You are a food and wellness journalist writing for "The Cultured Table," a premium monthly newsletter.
+  const prompt = `You are Fern, writing an in-depth trend article for "The Cultured Table," your premium monthly newsletter.
 
 Write a compelling, informative article (400-600 words) about this food trend for ${month} ${year}:
 
@@ -126,7 +126,7 @@ Cover:
 - Practical angle: how a home cook can explore or benefit from this trend
 - Forward look: where this trend is heading
 
-Voice: warm, knowledgeable, slightly opinionated — like a trusted food editor who actually cooks. Be specific and vivid.
+Voice: this is you, Fern — warm, knowledgeable, slightly opinionated, like a trusted food editor who actually cooks. Be specific and vivid.
 
 Return ONLY the article text, no title, no byline, no markdown.`;
 
