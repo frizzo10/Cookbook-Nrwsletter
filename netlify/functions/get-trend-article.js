@@ -1,8 +1,62 @@
 // netlify/functions/get-trend-article.js
-import Anthropic from "@anthropic-ai/sdk";
 import { getStore } from "@netlify/blobs";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+async function callGroqQwen(prompt, maxTokens) {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return { ok: false, error: "no GROQ_API_KEY configured" };
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify({
+        model: "qwen/qwen3.6-27b",
+        reasoning_effort: "none",
+        max_tokens: maxTokens,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error?.message || `Groq error ${res.status}` };
+    const msg = data.choices?.[0]?.message || {};
+    const text = (msg.content && msg.content.trim()) || msg.reasoning || "";
+    return { ok: true, text };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function callGeminiFallback(prompt, maxTokens) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return { ok: false, error: "no GEMINI_API_KEY configured" };
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
+        }),
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error?.message || `Gemini error ${res.status}` };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    return { ok: true, text };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function generateText(prompt, maxTokens) {
+  const primary = await callGroqQwen(prompt, maxTokens);
+  if (primary.ok && primary.text.trim()) return primary.text;
+  console.error("[get-trend-article] Qwen failed (" + (primary.error || "empty") + "), falling back to Gemini");
+  const fallback = await callGeminiFallback(prompt, maxTokens);
+  if (fallback.ok && fallback.text.trim()) return fallback.text;
+  throw new Error(`Both Qwen and Gemini failed. Qwen: ${primary.error || "empty response"}. Gemini: ${fallback.error || "empty response"}.`);
+}
 
 async function fetchPexelsImage(query) {
   const key = process.env.PEXELS_API_KEY;
@@ -76,16 +130,12 @@ Voice: warm, knowledgeable, slightly opinionated — like a trusted food editor 
 
 Return ONLY the article text, no title, no byline, no markdown.`;
 
-  const [message, image] = await Promise.all([
-    anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [{ role: "user", content: prompt }],
-    }),
+  const [rawArticle, image] = await Promise.all([
+    generateText(prompt, 1000),
     fetchPexelsImage(`${title} food`),
   ]);
 
-  const article = message.content[0].text.trim();
+  const article = rawArticle.trim();
 
   // Cache it
   await store.setJSON(cacheKey, { article, image, title, generated_at: new Date().toISOString() });
