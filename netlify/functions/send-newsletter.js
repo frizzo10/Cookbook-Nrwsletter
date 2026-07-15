@@ -114,14 +114,21 @@ function buildEmailHTML(nl, sub) {
   const firstName = (sub.name || "").split(" ")[0] || "";
   const greeting = firstName ? `for ${firstName}` : "";
 
+  const SITE_URL = process.env.URL || "https://cookbookai1.netlify.app";
+  const monthNumbers = { January:1, February:2, March:3, April:4, May:5, June:6, July:7, August:8, September:9, October:10, November:11, December:12 };
+  const issueKey = nl.year && monthNumbers[nl.month]
+    ? `${nl.year}-${String(monthNumbers[nl.month]).padStart(2, "0")}`
+    : null;
+  const recipeLink = (i) => issueKey ? `${SITE_URL}/?issue=${issueKey}&save=${i}` : SITE_URL;
+
   const heroImgHTML = nl.hero_image
     ? `<img src="${nl.hero_image.url}" alt="The Cultured Table ${nl.month} ${nl.year}" style="width:100%;max-height:300px;object-fit:cover;display:block;">`
     : '';
 
-  const recipesHTML = nl.recipes.map((r) => `
+  const recipesHTML = nl.recipes.map((r, i) => `
     <div style="margin-bottom:32px;border-left:3px solid #c8a96e;padding-left:20px;">
-      ${r.image ? `<img src="${r.image.url}" alt="${r.name}" style="width:100%;height:180px;object-fit:cover;display:block;margin-bottom:14px;margin-left:-20px;width:calc(100% + 20px);">` : ''}
-      <h3 style="font-family:'Georgia',serif;font-size:20px;color:#1a1a1a;margin:0 0 6px">${r.name}</h3>
+      ${r.image ? `<a href="${recipeLink(i)}" style="text-decoration:none"><img src="${r.image.url}" alt="${r.name}" style="width:100%;height:180px;object-fit:cover;display:block;margin-bottom:14px;margin-left:-20px;width:calc(100% + 20px);"></a>` : ''}
+      <h3 style="font-family:'Georgia',serif;font-size:20px;color:#1a1a1a;margin:0 0 6px"><a href="${recipeLink(i)}" style="color:#1a1a1a;text-decoration:none">${r.name}</a></h3>
       <p style="font-size:13px;color:#888;margin:0 0 10px">⏱ Prep: ${r.prep_time} · Cook: ${r.cook_time} · Serves ${r.servings}</p>
       <p style="font-size:15px;color:#444;line-height:1.6;margin:0 0 14px">${r.description}</p>
       <p style="font-size:13px;font-weight:700;color:#1a1a1a;margin:0 0 6px;text-transform:uppercase;letter-spacing:.05em">Ingredients</p>
@@ -132,7 +139,8 @@ function buildEmailHTML(nl, sub) {
       <ol style="font-size:14px;color:#555;padding-left:18px;margin:0 0 12px;line-height:1.8">
         ${r.instructions.map((s) => `<li style="margin-bottom:6px">${s}</li>`).join("")}
       </ol>
-      <p style="font-size:13px;color:#c8a96e;font-style:italic;margin:0">💡 ${r.tip}</p>
+      <p style="font-size:13px;color:#c8a96e;font-style:italic;margin:0 0 16px">💡 ${r.tip}</p>
+      <a href="${recipeLink(i)}" style="display:inline-block;background:#1C3A1A;color:#F0E0B0;padding:.55rem 1.2rem;border-radius:8px;text-decoration:none;font-family:Georgia,serif;font-weight:700;font-size:14px">🌿 Save to My Fern Cookbook</a>
     </div>`).join("");
 
   const trendsHTML = nl.trends.map((t) => `
@@ -157,7 +165,7 @@ function buildEmailHTML(nl, sub) {
       <p style="font-size:14px;color:#999;font-style:italic;margin:0">${nl.tagline}</p>
     </div>
     <div style="padding:32px 40px 24px;border-bottom:1px solid #ede8dc;">
-      <p style="font-size:13px;color:#c8a96e;letter-spacing:.15em;text-transform:uppercase;margin:0 0 10px">From the Editor</p>
+      <p style="font-size:13px;color:#c8a96e;letter-spacing:.15em;text-transform:uppercase;margin:0 0 10px">A Note from Fern</p>
       <p style="font-size:15px;color:#444;line-height:1.8;font-style:italic;margin:0">${nl.editors_note}</p>
     </div>
     <div style="padding:32px 40px;border-bottom:1px solid #ede8dc;">
