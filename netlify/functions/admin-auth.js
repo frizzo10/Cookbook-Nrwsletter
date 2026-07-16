@@ -2,6 +2,17 @@
 import crypto from "crypto";
 import { getStore } from "@netlify/blobs";
 
+async function logSecurityEvent(type, detail, ip) {
+  try {
+    const logStore = getStore("security-log");
+    const events = (await logStore.get("events", { type: "json" }).catch(() => [])) || [];
+    events.unshift({ type, detail, ip, timestamp: new Date().toISOString() });
+    await logStore.setJSON("events", events.slice(0, 200));
+  } catch (e) {
+    console.error("[security-log] failed:", e.message);
+  }
+}
+
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const SESSION_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -79,6 +90,7 @@ export default async (req) => {
 
   const turnstileOk = await verifyTurnstile(turnstileToken, ip);
   if (!turnstileOk) {
+    await logSecurityEvent("turnstile_failed", "admin login", ip);
     return new Response(JSON.stringify({ error: "Verification failed. Please try again." }), { status: 400, headers });
   }
 
@@ -87,7 +99,9 @@ export default async (req) => {
       ? { count: lockData.count + 1, windowStart: lockData.windowStart }
       : { count: 1, windowStart: now };
     await lockStore.setJSON(lockKey, newLockData);
+    await logSecurityEvent("admin_failed_login", `attempt ${newLockData.count}/${MAX_ATTEMPTS}`, ip);
     if (newLockData.count === MAX_ATTEMPTS) {
+      await logSecurityEvent("admin_lockout", "5 failed attempts within 15 minutes", ip);
       await alertOnLockout(ip);
     }
     return new Response(JSON.stringify({ error: "Invalid password" }), { status: 401, headers });
@@ -95,6 +109,7 @@ export default async (req) => {
 
   // Success — clear any lockout counter for this IP
   await lockStore.delete(lockKey).catch(() => {});
+  await logSecurityEvent("admin_login_success", "", ip);
 
   // Random per-session token, not a deterministic hash anyone with the
   // password could recompute — stored server-side with a real expiry.
