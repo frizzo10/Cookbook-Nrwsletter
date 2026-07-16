@@ -1,12 +1,16 @@
 // netlify/functions/admin-api.js
 import { getStore } from "@netlify/blobs";
-import crypto from "crypto";
 
-function verifyToken(token) {
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD1 || "admin";
-  const today = new Date().toISOString().slice(0, 10);
-  const expected = crypto.createHmac("sha256", ADMIN_PASSWORD).update(today).digest("hex");
-  return token === expected;
+async function verifyToken(token) {
+  if (!token) return false;
+  const sessionStore = getStore("admin-sessions");
+  const session = await sessionStore.get(token, { type: "json" }).catch(() => null);
+  if (!session) return false;
+  if (Date.now() > session.expiresAt) {
+    await sessionStore.delete(token).catch(() => {});
+    return false;
+  }
+  return true;
 }
 
 export default async (req) => {
@@ -21,7 +25,7 @@ export default async (req) => {
   const action = url.searchParams.get("action");
   const token = url.searchParams.get("token") || (await req.json().catch(() => ({}))).token;
 
-  if (!verifyToken(token)) {
+  if (!(await verifyToken(token))) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
   }
 
