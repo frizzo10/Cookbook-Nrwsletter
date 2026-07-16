@@ -10,6 +10,17 @@
 import { getStore } from "@netlify/blobs";
 import crypto from "crypto";
 
+async function logSecurityEvent(type, detail, ip) {
+  try {
+    const logStore = getStore("security-log");
+    const events = (await logStore.get("events", { type: "json" }).catch(() => [])) || [];
+    events.unshift({ type, detail, ip, timestamp: new Date().toISOString() });
+    await logStore.setJSON("events", events.slice(0, 200));
+  } catch (e) {
+    console.error("[security-log] failed:", e.message);
+  }
+}
+
 async function verifyTurnstile(token, ip) {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) return true; // not configured yet — don't hard-block
@@ -125,6 +136,7 @@ export default async (req) => {
   if (!code) {
     const turnstileOk = await verifyTurnstile(turnstileToken, ip);
     if (!turnstileOk) {
+      await logSecurityEvent("turnstile_failed", "save_to_cookbook", ip);
       return new Response(JSON.stringify({ error: "Verification failed. Please try again." }), { status: 400, headers });
     }
   }
@@ -150,6 +162,7 @@ export default async (req) => {
     const attempts = (pending.attempts || 0) + 1;
     if (attempts > 5) {
       await pendingStore.delete(email).catch(() => {});
+      await logSecurityEvent("code_bruteforce_blocked", email, ip);
       return new Response(JSON.stringify({ error: "Too many incorrect attempts. Request a new code." }), { status: 429, headers });
     }
     if (pending.code !== String(code).trim()) {
