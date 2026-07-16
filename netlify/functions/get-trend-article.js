@@ -1,6 +1,13 @@
 // netlify/functions/get-trend-article.js
 import { getStore } from "@netlify/blobs";
 
+const RATE_LIMIT_MAX = 20; // max article generations per IP per window
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function getClientIp(req) {
+  return req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+}
+
 async function callGroqQwen(prompt, maxTokens) {
   const key = process.env.GROQ_API_KEY;
   if (!key) return { ok: false, error: "no GROQ_API_KEY configured" };
@@ -90,27 +97,55 @@ export default async (req) => {
   if (req.method === "OPTIONS") return new Response("", { status: 200, headers });
 
   const url = new URL(req.url);
-  const title = url.searchParams.get("title") || "";
-  const summary = url.searchParams.get("summary") || "";
-  const month = url.searchParams.get("month") || "";
-  const year = url.searchParams.get("year") || "";
+  const issueKey = url.searchParams.get("key") || "";
+  const trendIndex = parseInt(url.searchParams.get("trendIndex"));
 
-  if (!title) {
-    return new Response(JSON.stringify({ error: "Missing title" }), { status: 400, headers });
+  if (!issueKey || isNaN(trendIndex) || trendIndex < 0 || trendIndex > 10) {
+    return new Response(JSON.stringify({ error: "Missing or invalid key/trendIndex" }), { status: 400, headers });
   }
 
+  // ── Rate limit by IP — this endpoint calls paid AI + image APIs on a
+  // cache miss, so it's a real cost target without a limit. ────────────
+  const ip = getClientIp(req);
+  const rlStore = getStore("rate-limits");
+  const rlKey = `trend-article:${ip}`;
+  const rlData = await rlStore.get(rlKey, { type: "json" }).catch(() => null);
+  const now = Date.now();
+  if (rlData && rlData.count >= RATE_LIMIT_MAX && now - rlData.windowStart < RATE_LIMIT_WINDOW_MS) {
+    return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), { status: 429, headers });
+  }
+  const newRlData = rlData && now - rlData.windowStart < RATE_LIMIT_WINDOW_MS
+    ? { count: rlData.count + 1, windowStart: rlData.windowStart }
+    : { count: 1, windowStart: now };
+  await rlStore.setJSON(rlKey, newRlData);
+
+  // ── Look up the REAL trend from stored issue data — never trust
+  // client-supplied title/summary text directly. Without this, anyone
+  // could pass arbitrary unique strings to force fresh (costly) AI calls
+  // on every request, bypassing the cache entirely. ────────────────────
+  const nlStore = getStore("newsletters");
+  const nl = await nlStore.get(issueKey, { type: "json" }).catch(() => null);
+  const trend = nl?.trends?.[trendIndex];
+  if (!trend) {
+    return new Response(JSON.stringify({ error: "Trend not found for that issue" }), { status: 404, headers });
+  }
+
+  const title = trend.title;
+  const summary = trend.summary;
+  const month = nl.month;
+  const year = nl.year;
+
   // Check cache first
-  const store = getStore("trend-articles");
-  const cacheKey = `${year}-${month}-${title.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 60)}`;
+  const cacheStore = getStore("trend-articles");
+  const cacheKey = `${issueKey}-${trendIndex}`;
 
   try {
-    const cached = await store.get(cacheKey, { type: "json" });
+    const cached = await cacheStore.get(cacheKey, { type: "json" });
     if (cached) {
       return new Response(JSON.stringify({ article: cached.article, image: cached.image || null, cached: true }), { headers });
     }
   } catch {}
 
-  // Generate article + fetch image in parallel
   const prompt = `You are Fern, writing an in-depth trend article for "The Cultured Table," your premium monthly newsletter.
 
 Write a compelling, informative article (400-600 words) about this food trend for ${month} ${year}:
@@ -137,8 +172,7 @@ Return ONLY the article text, no title, no byline, no markdown.`;
 
   const article = rawArticle.trim();
 
-  // Cache it
-  await store.setJSON(cacheKey, { article, image, title, generated_at: new Date().toISOString() });
+  await cacheStore.setJSON(cacheKey, { article, image, title, generated_at: new Date().toISOString() });
 
   return new Response(JSON.stringify({ article, image, cached: false }), { headers });
 };
