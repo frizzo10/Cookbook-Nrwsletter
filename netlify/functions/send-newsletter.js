@@ -250,7 +250,7 @@ export default async (req) => {
   let sent = 0, failed = 0;
 
   for (const sub of subList) {
-    if (!sub.email || sub.unsubscribed) continue;
+    if (!sub.email || sub.unsubscribed || !sub.confirmed) continue;
 
     try {
       // Personalize content for this subscriber
