@@ -1,6 +1,17 @@
 // netlify/functions/get-trend-article.js
 import { getStore } from "@netlify/blobs";
 
+async function logSecurityEvent(type, detail, ip) {
+  try {
+    const logStore = getStore("security-log");
+    const events = (await logStore.get("events", { type: "json" }).catch(() => [])) || [];
+    events.unshift({ type, detail, ip, timestamp: new Date().toISOString() });
+    await logStore.setJSON("events", events.slice(0, 200));
+  } catch (e) {
+    console.error("[security-log] failed:", e.message);
+  }
+}
+
 const RATE_LIMIT_MAX = 20; // max article generations per IP per window
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
@@ -112,6 +123,7 @@ export default async (req) => {
   const rlData = await rlStore.get(rlKey, { type: "json" }).catch(() => null);
   const now = Date.now();
   if (rlData && rlData.count >= RATE_LIMIT_MAX && now - rlData.windowStart < RATE_LIMIT_WINDOW_MS) {
+    await logSecurityEvent("rate_limit_blocked", "get-trend-article", ip);
     return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), { status: 429, headers });
   }
   const newRlData = rlData && now - rlData.windowStart < RATE_LIMIT_WINDOW_MS
