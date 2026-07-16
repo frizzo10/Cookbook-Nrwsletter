@@ -110,7 +110,18 @@ export default async (req) => {
   // ── Step 2: code provided — verify and actually save ──────────────
   if (code) {
     const pending = await pendingStore.get(email, { type: "json" }).catch(() => null);
-    if (!pending || pending.code !== String(code).trim() || Date.now() > pending.expires) {
+    if (!pending || Date.now() > pending.expires) {
+      return new Response(JSON.stringify({ error: "That code is invalid or expired. Request a new one." }), { status: 401, headers });
+    }
+    // Cap guesses — without this, the 6-digit code is brute-forceable
+    // within its 15-minute window via a simple script loop.
+    const attempts = (pending.attempts || 0) + 1;
+    if (attempts > 5) {
+      await pendingStore.delete(email).catch(() => {});
+      return new Response(JSON.stringify({ error: "Too many incorrect attempts. Request a new code." }), { status: 429, headers });
+    }
+    if (pending.code !== String(code).trim()) {
+      await pendingStore.setJSON(email, { ...pending, attempts });
       return new Response(JSON.stringify({ error: "That code is invalid or expired. Request a new one." }), { status: 401, headers });
     }
     const result = await doSave(user.id, pending.recipe);
