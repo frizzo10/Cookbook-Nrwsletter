@@ -10,6 +10,27 @@
 import { getStore } from "@netlify/blobs";
 import crypto from "crypto";
 
+async function verifyTurnstile(token, ip) {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) return true; // not configured yet — don't hard-block
+  if (!token) return false;
+  try {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ secret, response: token, remoteip: ip }),
+    });
+    const data = await res.json();
+    return !!data.success;
+  } catch {
+    return false;
+  }
+}
+
+function getClientIp(req) {
+  return req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+}
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const RESEND_KEY = process.env.RESEND_API_KEY;
@@ -87,14 +108,25 @@ export default async (req) => {
   if (req.method === "OPTIONS") return new Response("", { status: 200, headers });
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers });
 
-  const { email: rawEmail, recipe, code } = await req.json().catch(() => ({}));
+  const { email: rawEmail, recipe, code, turnstileToken } = await req.json().catch(() => ({}));
   const email = (rawEmail || "").trim().toLowerCase();
+  const ip = getClientIp(req);
 
   if (!email || !recipe || !recipe.name) {
     return new Response(JSON.stringify({ error: "Missing email or recipe" }), { status: 400, headers });
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return new Response(JSON.stringify({ error: "Invalid email" }), { status: 400, headers });
+  }
+
+  // Turnstile only required to request a code (step 1) — that's the action
+  // that's cheap to spam and would flood someone's inbox. Submitting the
+  // code itself (step 2) is already capped at 5 attempts.
+  if (!code) {
+    const turnstileOk = await verifyTurnstile(turnstileToken, ip);
+    if (!turnstileOk) {
+      return new Response(JSON.stringify({ error: "Verification failed. Please try again." }), { status: 400, headers });
+    }
   }
 
   const user = await findFernUser(email);
