@@ -2,6 +2,17 @@
 import { getStore } from "@netlify/blobs";
 import crypto from "crypto";
 
+async function logSecurityEvent(type, detail, ip) {
+  try {
+    const logStore = getStore("security-log");
+    const events = (await logStore.get("events", { type: "json" }).catch(() => [])) || [];
+    events.unshift({ type, detail, ip, timestamp: new Date().toISOString() });
+    await logStore.setJSON("events", events.slice(0, 200));
+  } catch (e) {
+    console.error("[security-log] failed:", e.message);
+  }
+}
+
 async function verifyTurnstile(token, ip) {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) return true; // not configured yet — don't hard-block signups
@@ -40,19 +51,20 @@ export default async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405, headers });
 
   const body = await req.json().catch(() => ({}));
+  const ip = getClientIp(req);
 
   // ── Honeypot — real users never fill this hidden field; bots that
   // auto-fill every form field will, so silently pretend to succeed. ────
   if (body.website) {
+    await logSecurityEvent("honeypot_triggered", body.email || "", ip);
     return new Response(JSON.stringify({ success: true, message: "Welcome aboard!" }), { headers });
   }
-
-  const ip = getClientIp(req);
 
   // ── Turnstile — this is the real bot defense; honeypot + rate limits
   // only slow down unsophisticated automation. ─────────────────────────
   const turnstileOk = await verifyTurnstile(body.turnstileToken, ip);
   if (!turnstileOk) {
+    await logSecurityEvent("turnstile_failed", "subscribe", ip);
     return new Response(JSON.stringify({ error: "Verification failed. Please try again." }), { status: 400, headers });
   }
 
@@ -62,6 +74,7 @@ export default async (req) => {
   const rlData = await rlStore.get(rlKey, { type: "json" }).catch(() => null);
   const now = Date.now();
   if (rlData && rlData.count >= RATE_LIMIT_MAX && now - rlData.windowStart < RATE_LIMIT_WINDOW_MS) {
+    await logSecurityEvent("rate_limit_blocked", "subscribe", ip);
     return new Response(JSON.stringify({ error: "Too many attempts. Please try again later." }), { status: 429, headers });
   }
   const newRlData = rlData && now - rlData.windowStart < RATE_LIMIT_WINDOW_MS
