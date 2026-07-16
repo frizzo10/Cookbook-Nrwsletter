@@ -498,12 +498,13 @@
 <div class="fern-modal-overlay" id="fern-modal">
   <div class="fern-modal">
     <div id="fern-modal-preview" style="margin-bottom:16px"></div>
-    <h3>Save to Your Fern Cookbook</h3>
-    <p>Enter the email address linked to your Click Pick & Cook account and we'll add this recipe directly to your cookbook shelf.</p>
+    <h3 id="fern-modal-title">Save to Your Fern Cookbook</h3>
+    <p id="fern-modal-desc">Enter the email address linked to your Click Pick & Cook account and we'll send you a code to confirm it's really you.</p>
     <input type="email" id="fern-email" placeholder="your@email.com" autocomplete="email">
+    <input type="text" id="fern-code" placeholder="6-digit code" inputmode="numeric" maxlength="6" style="display:none;margin-top:8px">
     <div class="fern-modal-btns">
       <button onclick="closeFernModal()">Cancel</button>
-      <button class="primary" onclick="confirmSave()">Save Recipe</button>
+      <button class="primary" id="fern-modal-action-btn" onclick="confirmSave()">Send Code</button>
     </div>
     <p id="fern-modal-msg"></p>
     <p style="margin-top:16px;font-size:12px;color:var(--muted)">Don't have the app? <a href="https://app.clickpickandcook.com" style="color:var(--gold)">Get it free →</a></p>
@@ -561,6 +562,7 @@
         <div class="step-fields">
           <input type="text" id="sub-name" placeholder="Your name" autocomplete="name">
           <input type="email" id="sub-email" placeholder="your@email.com" autocomplete="email">
+          <input type="text" id="sub-website" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" aria-hidden="true">
         </div>
         <button class="step-btn" onclick="goStep2()">Next →</button>
       </div>
@@ -647,17 +649,16 @@
       : `Vol. 1 · ${nl.month} ${nl.year} Issue`;
     showMain();
 
+  const _monthNumbers = { January:1, February:2, March:3, April:4, May:5, June:6, July:7, August:8, September:9, October:10, November:11, December:12 };
   const trendsHTML = nl.trends.map((t, i) => `
       <div class="trend-card">
         ${t.image ? `<img src="${t.image.url}" alt="${t.title}" style="width:100%;height:180px;object-fit:cover;display:block;margin-bottom:16px;">` : ''}
         <h3>${t.title}</h3>
         <p>${t.summary}</p>
         <p class="why">↗ ${t.why_it_matters}</p>
-        <button class="read-more" onclick="toggleArticle(${i}, this)" 
-          data-title="${encodeURIComponent(t.title)}"
-          data-summary="${encodeURIComponent(t.summary)}"
-          data-month="${nl.month}"
-          data-year="${nl.year}">
+        <button class="read-more" onclick="toggleArticle(${i}, this)"
+          data-issue-key="${nl.year && _monthNumbers[nl.month] ? `${nl.year}-${String(_monthNumbers[nl.month]).padStart(2,'0')}` : 'latest'}"
+          data-trend-index="${i}">
           Read Full Article →
         </button>
         <div class="trend-article" id="article-${i}"></div>
@@ -812,6 +813,7 @@
   window.submitSignup = async function() {
     const name = document.getElementById('sub-name').value.trim();
     const email = document.getElementById('sub-email').value.trim();
+    const website = document.getElementById('sub-website').value; // honeypot — should always be empty
     const diet = getActivePill('diet-pills') || 'omnivore';
     const skill = getActivePill('skill-pills') || 'intermediate';
     const allergiesRaw = getActivePills('allergy-pills').filter(a => a !== 'none');
@@ -823,7 +825,7 @@
       const res = await fetch('/.netlify/functions/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, diet, skill, allergies: allergiesRaw }),
+        body: JSON.stringify({ name, email, website, diet, skill, allergies: allergiesRaw }),
       });
       const data = await res.json();
       document.getElementById('sub-message').textContent = data.message || data.error || 'Done!';
@@ -857,13 +859,12 @@
     container.innerHTML = '<p class="article-loading">Composing the full article…</p>';
     container.classList.add('open');
 
-    const title = decodeURIComponent(btn.dataset.title);
-    const summary = decodeURIComponent(btn.dataset.summary);
-    const month = btn.dataset.month;
-    const year = btn.dataset.year;
+    const issueKey = btn.dataset.issueKey;
+    const trendIndex = btn.dataset.trendIndex;
+    const title = decodeURIComponent(btn.closest('.trend-card').querySelector('h3').textContent);
 
     try {
-      const params = new URLSearchParams({ title, summary, month, year });
+      const params = new URLSearchParams({ key: issueKey, trendIndex });
       const res = await fetch(`/.netlify/functions/get-trend-article?${params}`);
       const data = await res.json();
 
@@ -888,11 +889,19 @@
 
   // ── Save to Fern ──
   let _pendingRecipe = null;
+  let _awaitingCode = false;
 
   window.openFernModal = function(index) {
     _pendingRecipe = index;
+    _awaitingCode = false;
     document.getElementById('fern-modal-msg').textContent = '';
     document.getElementById('fern-email').value = '';
+    document.getElementById('fern-email').style.display = '';
+    document.getElementById('fern-code').style.display = 'none';
+    document.getElementById('fern-code').value = '';
+    document.getElementById('fern-modal-title').textContent = 'Save to Your Fern Cookbook';
+    document.getElementById('fern-modal-desc').textContent = "Enter the email address linked to your Click Pick & Cook account and we'll send you a code to confirm it's really you.";
+    document.getElementById('fern-modal-action-btn').textContent = 'Send Code';
     const nl = window._currentNewsletter;
     const r = nl && nl.recipes && nl.recipes[index];
     const preview = document.getElementById('fern-modal-preview');
@@ -911,16 +920,16 @@
   window.closeFernModal = function() {
     document.getElementById('fern-modal').classList.remove('open');
     _pendingRecipe = null;
+    _awaitingCode = false;
   };
 
   window.confirmSave = async function() {
     const email = document.getElementById('fern-email').value.trim();
+    const code = document.getElementById('fern-code').value.trim();
     const msg = document.getElementById('fern-modal-msg');
     if (!email) { msg.textContent = 'Please enter your email.'; return; }
+    if (_awaitingCode && !code) { msg.textContent = 'Please enter the code we sent you.'; return; }
 
-    // Use whatever issue is actually on screen — not always "latest".
-    // Without this, saving from an archived issue would silently save the
-    // wrong recipe (whatever's at that position in the current latest issue).
     const nl = window._currentNewsletter;
     if (!nl || !nl.recipes || !nl.recipes[_pendingRecipe]) {
       msg.innerHTML = 'Something went wrong loading this recipe. Please refresh and try again.';
@@ -929,11 +938,11 @@
     const recipe = nl.recipes[_pendingRecipe];
 
     try {
-      msg.textContent = 'Saving…';
+      msg.textContent = _awaitingCode ? 'Verifying…' : 'Sending code…';
       const saveRes = await fetch('/.netlify/functions/save-to-cookbook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, recipe }),
+        body: JSON.stringify(_awaitingCode ? { email, recipe, code } : { email, recipe }),
       });
       const data = await saveRes.json();
 
@@ -942,6 +951,16 @@
         const btn = document.getElementById(`save-btn-${_pendingRecipe}`);
         if (btn) { btn.textContent = '✓ Saved to Cookbook'; btn.classList.add('saved'); btn.onclick = null; }
         setTimeout(closeFernModal, 2000);
+      } else if (data.needsVerification) {
+        // Step 1 succeeded — now show the code field
+        _awaitingCode = true;
+        document.getElementById('fern-email').style.display = 'none';
+        document.getElementById('fern-code').style.display = '';
+        document.getElementById('fern-modal-title').textContent = 'Enter Your Code';
+        document.getElementById('fern-modal-desc').textContent = data.message || 'Check your email for a 6-digit code.';
+        document.getElementById('fern-modal-action-btn').textContent = 'Confirm & Save';
+        msg.textContent = '';
+        setTimeout(() => document.getElementById('fern-code').focus(), 100);
       } else if (saveRes.status === 404) {
         // No Fern account found for that email — give a real clickable CTA
         // instead of a plain-text error the reader has to copy by hand.
