@@ -234,6 +234,8 @@
     <div class="stats-row" id="stats-row">
       <div class="stat-card"><div class="stat-num" id="stat-total">—</div><div class="stat-label">Total Subscribers</div></div>
       <div class="stat-card"><div class="stat-num" id="stat-active">—</div><div class="stat-label">Active</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-confirmed">—</div><div class="stat-label">Confirmed</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-pending">—</div><div class="stat-label">Pending Confirmation</div></div>
       <div class="stat-card"><div class="stat-num" id="stat-unsub">—</div><div class="stat-label">Unsubscribed</div></div>
     </div>
 
@@ -246,6 +248,20 @@
         <a href="/" target="_blank"><button class="action-btn">👁 View Live Site</button></a>
       </div>
       <p id="action-msg"></p>
+    </div>
+
+    <!-- System Health -->
+    <div class="section">
+      <p class="section-head">System Health</p>
+      <div id="health-panel" style="font-size:14px;color:var(--muted);font-style:italic">Loading…</div>
+    </div>
+
+    <!-- Security Log -->
+    <div class="section">
+      <p class="section-head">Security Log <span style="font-weight:400;font-size:12px;opacity:.6">(last 200 events)</span></p>
+      <div id="security-log-panel" style="font-size:13px">
+        <div style="color:var(--muted);font-style:italic">Loading…</div>
+      </div>
     </div>
 
     <!-- Diet breakdown -->
@@ -361,6 +377,8 @@
     loadStats();
     loadSubscribers();
     loadIssues();
+    loadHealth();
+    loadSecurityLog();
   }
 
   async function loadStats() {
@@ -368,6 +386,8 @@
     if (!data) return;
     document.getElementById('stat-total').textContent = data.total ?? '0';
     document.getElementById('stat-active').textContent = data.active ?? '0';
+    document.getElementById('stat-confirmed').textContent = data.confirmed ?? '0';
+    document.getElementById('stat-pending').textContent = data.pending ?? '0';
     document.getElementById('stat-unsub').textContent = data.unsubscribed ?? '0';
 
     // Diet bars
@@ -384,6 +404,78 @@
         <div class="diet-bar-track"><div class="diet-bar-fill" style="width:${Math.round(count/total*100)}%"></div></div>
         <span class="diet-bar-count">${count}</span>
       </div>`).join('');
+  }
+
+  const _configLabels = {
+    groq: 'Groq (Qwen)', gemini: 'Gemini (fallback)', pexels: 'Pexels images',
+    resend: 'Resend (email)', supabase: 'Supabase (Fern accounts)',
+    turnstile: 'Cloudflare Turnstile', adminAlertEmail: 'Admin alert email',
+  };
+
+  async function loadHealth() {
+    const data = await api('health');
+    const panel = document.getElementById('health-panel');
+    if (!data) { panel.innerHTML = '<span style="color:#c0392b">Failed to load health status.</span>'; return; }
+
+    let html = '';
+
+    // Generation status
+    if (data.lastGeneration) {
+      html += `<p style="margin:0 0 8px"><strong style="color:#2d6a2d">✓ Last issue:</strong> ${data.lastGeneration.month} ${data.lastGeneration.year}`;
+      if (data.lastGeneration.generatedAt) {
+        html += ` <span style="opacity:.6">(${new Date(data.lastGeneration.generatedAt).toLocaleString()})</span>`;
+      }
+      html += `</p>`;
+    } else {
+      html += `<p style="margin:0 0 8px;color:#c0392b">No newsletter has been generated yet.</p>`;
+    }
+
+    // Last error, if any and if recent-looking
+    if (data.lastError && data.lastError.message) {
+      html += `<p style="margin:0 0 12px;color:#c0392b">⚠️ Last generation error (${new Date(data.lastError.at).toLocaleString()}): ${data.lastError.message}</p>`;
+    }
+
+    // Config checklist
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">';
+    for (const [key, label] of Object.entries(_configLabels)) {
+      const ok = data.config?.[key];
+      html += `<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:4px 10px;border-radius:100px;background:${ok ? '#e8f3e8' : '#fbeaea'};color:${ok ? '#2d6a2d' : '#c0392b'}">${ok ? '✓' : '✗'} ${label}</span>`;
+    }
+    html += '</div>';
+
+    panel.innerHTML = html;
+  }
+
+  const _eventLabels = {
+    admin_login_success: { icon: '🔑', label: 'Admin login', color: '#2d6a2d' },
+    admin_failed_login: { icon: '⚠️', label: 'Failed admin login', color: '#b8860b' },
+    admin_lockout: { icon: '🔒', label: 'Admin locked out', color: '#c0392b' },
+    turnstile_failed: { icon: '🤖', label: 'Bot check failed', color: '#b8860b' },
+    rate_limit_blocked: { icon: '⏱', label: 'Rate limit hit', color: '#b8860b' },
+    honeypot_triggered: { icon: '🍯', label: 'Honeypot triggered (bot)', color: '#c0392b' },
+    code_bruteforce_blocked: { icon: '🔢', label: 'Code guess limit hit', color: '#c0392b' },
+  };
+
+  async function loadSecurityLog() {
+    const data = await api('security-log');
+    const panel = document.getElementById('security-log-panel');
+    if (!data) { panel.innerHTML = '<span style="color:#c0392b">Failed to load security log.</span>'; return; }
+    const events = data.events || [];
+    if (!events.length) {
+      panel.innerHTML = '<div style="color:var(--muted);font-style:italic">No security events recorded yet — good sign.</div>';
+      return;
+    }
+    panel.innerHTML = `<div style="display:flex;flex-direction:column;gap:4px;max-height:400px;overflow-y:auto">` +
+      events.map(e => {
+        const meta = _eventLabels[e.type] || { icon: '•', label: e.type, color: 'var(--muted)' };
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;background:rgba(0,0,0,.02)">
+          <span>${meta.icon}</span>
+          <span style="color:${meta.color};font-weight:600;min-width:180px">${meta.label}</span>
+          <span style="color:var(--muted);flex:1">${e.detail || ''}</span>
+          <span style="color:var(--muted);font-size:11px">${e.ip || ''}</span>
+          <span style="color:var(--muted);font-size:11px;white-space:nowrap">${new Date(e.timestamp).toLocaleString()}</span>
+        </div>`;
+      }).join('') + `</div>`;
   }
 
   async function loadSubscribers() {
