@@ -211,10 +211,12 @@
     <h1>The Cultured Table</h1>
     <p>Admin Panel</p>
     <input type="password" id="pw-input" placeholder="Password" autocomplete="current-password">
+    <div id="turnstile-login" style="margin:12px 0"></div>
     <button onclick="login()">Enter</button>
     <p id="login-error"></p>
   </div>
 </div>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
 <!-- Dashboard -->
 <div id="dashboard">
@@ -294,15 +296,29 @@
   // Auto-login if token exists
   if (_token) showDashboard();
 
+  let _turnstileWidgetId = null;
+  fetch('/.netlify/functions/get-config').then(r => r.json()).then(cfg => {
+    if (cfg.turnstileSiteKey && window.turnstile) {
+      _turnstileWidgetId = turnstile.render('#turnstile-login', { sitekey: cfg.turnstileSiteKey });
+    } else if (cfg.turnstileSiteKey) {
+      // api.js hasn't loaded yet — wait for it
+      window.addEventListener('load', () => {
+        if (window.turnstile) _turnstileWidgetId = turnstile.render('#turnstile-login', { sitekey: cfg.turnstileSiteKey });
+      });
+    }
+  }).catch(() => {});
+
   async function login() {
     const pw = document.getElementById('pw-input').value;
     const err = document.getElementById('login-error');
     err.textContent = '';
 
+    const turnstileToken = _turnstileWidgetId !== null && window.turnstile ? turnstile.getResponse(_turnstileWidgetId) : null;
+
     const res = await fetch('/.netlify/functions/admin-auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw }),
+      body: JSON.stringify({ password: pw, turnstileToken }),
     });
     const data = await res.json();
 
@@ -311,7 +327,8 @@
       sessionStorage.setItem('admin_token', _token);
       showDashboard();
     } else {
-      err.textContent = 'Incorrect password.';
+      err.textContent = data.error || 'Incorrect password.';
+      if (_turnstileWidgetId !== null && window.turnstile) turnstile.reset(_turnstileWidgetId);
     }
   }
 
