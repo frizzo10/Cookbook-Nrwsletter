@@ -491,6 +491,7 @@
       .nav-strip { flex-wrap: wrap; }
     }
   </style>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
 
@@ -502,6 +503,7 @@
     <p id="fern-modal-desc">Enter the email address linked to your Click Pick & Cook account and we'll send you a code to confirm it's really you.</p>
     <input type="email" id="fern-email" placeholder="your@email.com" autocomplete="email">
     <input type="text" id="fern-code" placeholder="6-digit code" inputmode="numeric" maxlength="6" style="display:none;margin-top:8px">
+    <div id="turnstile-save" style="margin:12px 0"></div>
     <div class="fern-modal-btns">
       <button onclick="closeFernModal()">Cancel</button>
       <button class="primary" id="fern-modal-action-btn" onclick="confirmSave()">Send Code</button>
@@ -600,6 +602,7 @@
           <button class="pill" data-value="wheat">Wheat</button>
           <button class="pill" data-value="none">None</button>
         </div>
+        <div id="turnstile-subscribe" style="margin:16px 0"></div>
         <button class="step-btn" onclick="submitSignup()">Subscribe →</button>
       </div>
 
@@ -817,6 +820,7 @@
     const diet = getActivePill('diet-pills') || 'omnivore';
     const skill = getActivePill('skill-pills') || 'intermediate';
     const allergiesRaw = getActivePills('allergy-pills').filter(a => a !== 'none');
+    const turnstileToken = _turnstileSubscribeId !== null && window.turnstile ? turnstile.getResponse(_turnstileSubscribeId) : null;
 
     setStep('done');
     document.getElementById('sub-message').textContent = 'Subscribing…';
@@ -825,10 +829,11 @@
       const res = await fetch('/.netlify/functions/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, website, diet, skill, allergies: allergiesRaw }),
+        body: JSON.stringify({ name, email, website, diet, skill, allergies: allergiesRaw, turnstileToken }),
       });
       const data = await res.json();
       document.getElementById('sub-message').textContent = data.message || data.error || 'Done!';
+      if (_turnstileSubscribeId !== null && window.turnstile) turnstile.reset(_turnstileSubscribeId);
     } catch {
       document.getElementById('sub-message').textContent = 'Something went wrong. Try again.';
     }
@@ -902,6 +907,7 @@
     document.getElementById('fern-modal-title').textContent = 'Save to Your Fern Cookbook';
     document.getElementById('fern-modal-desc').textContent = "Enter the email address linked to your Click Pick & Cook account and we'll send you a code to confirm it's really you.";
     document.getElementById('fern-modal-action-btn').textContent = 'Send Code';
+    document.getElementById('turnstile-save').style.display = '';
     const nl = window._currentNewsletter;
     const r = nl && nl.recipes && nl.recipes[index];
     const preview = document.getElementById('fern-modal-preview');
@@ -936,15 +942,17 @@
       return;
     }
     const recipe = nl.recipes[_pendingRecipe];
+    const turnstileToken = !_awaitingCode && _turnstileSaveId !== null && window.turnstile ? turnstile.getResponse(_turnstileSaveId) : null;
 
     try {
       msg.textContent = _awaitingCode ? 'Verifying…' : 'Sending code…';
       const saveRes = await fetch('/.netlify/functions/save-to-cookbook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(_awaitingCode ? { email, recipe, code } : { email, recipe }),
+        body: JSON.stringify(_awaitingCode ? { email, recipe, code } : { email, recipe, turnstileToken }),
       });
       const data = await saveRes.json();
+      if (!_awaitingCode && _turnstileSaveId !== null && window.turnstile) turnstile.reset(_turnstileSaveId);
 
       if (data.success) {
         msg.textContent = data.message || 'Saved!';
@@ -952,10 +960,11 @@
         if (btn) { btn.textContent = '✓ Saved to Cookbook'; btn.classList.add('saved'); btn.onclick = null; }
         setTimeout(closeFernModal, 2000);
       } else if (data.needsVerification) {
-        // Step 1 succeeded — now show the code field
+        // Step 1 succeeded — now show the code field, hide Turnstile (not needed for code entry)
         _awaitingCode = true;
         document.getElementById('fern-email').style.display = 'none';
         document.getElementById('fern-code').style.display = '';
+        document.getElementById('turnstile-save').style.display = 'none';
         document.getElementById('fern-modal-title').textContent = 'Enter Your Code';
         document.getElementById('fern-modal-desc').textContent = data.message || 'Check your email for a 6-digit code.';
         document.getElementById('fern-modal-action-btn').textContent = 'Confirm & Save';
@@ -981,6 +990,24 @@
   document.getElementById('fern-modal').addEventListener('click', function(e) {
     if (e.target === this) closeFernModal();
   });
+
+  // ── Turnstile widgets ──
+  let _turnstileSubscribeId = null;
+  let _turnstileSaveId = null;
+  function _renderTurnstileWidgets(siteKey) {
+    if (!siteKey || !window.turnstile) return;
+    if (_turnstileSubscribeId === null && document.getElementById('turnstile-subscribe')) {
+      _turnstileSubscribeId = turnstile.render('#turnstile-subscribe', { sitekey: siteKey });
+    }
+    if (_turnstileSaveId === null && document.getElementById('turnstile-save')) {
+      _turnstileSaveId = turnstile.render('#turnstile-save', { sitekey: siteKey });
+    }
+  }
+  fetch('/.netlify/functions/get-config').then(r => r.json()).then(cfg => {
+    if (!cfg.turnstileSiteKey) return;
+    if (window.turnstile) _renderTurnstileWidgets(cfg.turnstileSiteKey);
+    else window.addEventListener('load', () => _renderTurnstileWidgets(cfg.turnstileSiteKey));
+  }).catch(() => {});
 
   const _issueParam = new URLSearchParams(window.location.search).get('issue');
   const _saveParam = new URLSearchParams(window.location.search).get('save');
