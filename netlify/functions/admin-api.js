@@ -42,15 +42,44 @@ export default async (req) => {
   if (action === "stats") {
     const list = await subStore.get("list", { type: "json" }).catch(() => []);
     const all = list || [];
+    const active = all.filter(s => !s.unsubscribed);
     return new Response(JSON.stringify({
       total: all.length,
-      active: all.filter(s => !s.unsubscribed).length,
+      active: active.length,
+      confirmed: active.filter(s => s.confirmed).length,
+      pending: active.filter(s => !s.confirmed).length,
       unsubscribed: all.filter(s => s.unsubscribed).length,
-      diets: all.filter(s => !s.unsubscribed).reduce((acc, s) => {
+      diets: active.reduce((acc, s) => {
         const d = s.prefs?.diet || "omnivore";
         acc[d] = (acc[d] || 0) + 1;
         return acc;
       }, {}),
+    }), { headers });
+  }
+
+  // GET security event log (Turnstile failures, rate limits, lockouts, etc.)
+  if (action === "security-log") {
+    const logStore = getStore("security-log");
+    const events = (await logStore.get("events", { type: "json" }).catch(() => [])) || [];
+    return new Response(JSON.stringify({ events }), { headers });
+  }
+
+  // GET system health — newsletter generation status + which integrations are configured
+  if (action === "health") {
+    const latest = await nlStore.get("latest", { type: "json" }).catch(() => null);
+    const lastError = await nlStore.get("last_error", { type: "json" }).catch(() => null);
+    return new Response(JSON.stringify({
+      lastGeneration: latest ? { month: latest.month, year: latest.year, generatedAt: latest.generated_at || null } : null,
+      lastError: lastError || null,
+      config: {
+        groq: !!process.env.GROQ_API_KEY,
+        gemini: !!process.env.GEMINI_API_KEY,
+        pexels: !!process.env.PEXELS_API_KEY,
+        resend: !!process.env.RESEND_API_KEY,
+        supabase: !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY),
+        turnstile: !!(process.env.TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY),
+        adminAlertEmail: !!process.env.ADMIN_ALERT_EMAIL,
+      },
     }), { headers });
   }
 
