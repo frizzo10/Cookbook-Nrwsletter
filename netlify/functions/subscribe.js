@@ -2,6 +2,23 @@
 import { getStore } from "@netlify/blobs";
 import crypto from "crypto";
 
+async function verifyTurnstile(token, ip) {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) return true; // not configured yet — don't hard-block signups
+  if (!token) return false;
+  try {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ secret, response: token, remoteip: ip }),
+    });
+    const data = await res.json();
+    return !!data.success;
+  } catch {
+    return false;
+  }
+}
+
 const VALID_DIETS = ["omnivore", "vegetarian", "vegan", "keto", "paleo", "mediterranean", "gluten-free"];
 const VALID_SKILLS = ["beginner", "intermediate", "advanced"];
 const VALID_ALLERGIES = ["nuts", "dairy", "eggs", "shellfish", "soy", "wheat"];
@@ -30,8 +47,16 @@ export default async (req) => {
     return new Response(JSON.stringify({ success: true, message: "Welcome aboard!" }), { headers });
   }
 
-  // ── Rate limit by IP ────────────────────────────────────────────────
   const ip = getClientIp(req);
+
+  // ── Turnstile — this is the real bot defense; honeypot + rate limits
+  // only slow down unsophisticated automation. ─────────────────────────
+  const turnstileOk = await verifyTurnstile(body.turnstileToken, ip);
+  if (!turnstileOk) {
+    return new Response(JSON.stringify({ error: "Verification failed. Please try again." }), { status: 400, headers });
+  }
+
+  // ── Rate limit by IP ────────────────────────────────────────────────
   const rlStore = getStore("rate-limits");
   const rlKey = `subscribe:${ip}`;
   const rlData = await rlStore.get(rlKey, { type: "json" }).catch(() => null);
