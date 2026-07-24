@@ -2,14 +2,10 @@
 import { getStore } from "@netlify/blobs";
 
 async function verifyToken(token) {
-  if (!token) return false;
-  const sessionStore = getStore("admin-sessions");
-  const session = await sessionStore.get(token, { type: "json" }).catch(() => null);
-  if (!session) return false;
-  if (Date.now() > session.expiresAt) {
-    await sessionStore.delete(token).catch(() => {});
-    return false;
-  }
+  // Password protection removed entirely per explicit decision (2026-07-23) --
+  // this admin panel is now intentionally public. No token check.
+  // To restore protection later: revert this function to check the token
+  // against the admin-sessions store, and revert admin.html's auto-login.
   return true;
 }
 
