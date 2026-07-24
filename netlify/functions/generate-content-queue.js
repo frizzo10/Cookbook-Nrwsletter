@@ -57,39 +57,6 @@ async function callAI(prompt, maxTokens) {
   return r;
 }
 
-// ── Coupons: unofficial Coupons.com wrapper via Parse.bot ────────────
-// NOT an official Coupons.com integration -- Parse.bot reverse-engineers
-// coupons.com's own internal API calls. Used deliberately here as a
-// testing-stage data source (see roadmap notes for the full risk
-// tradeoff). Requires PARSE_API_KEY in Netlify env vars -- if it's not
-// set, this returns an empty array and content generation falls back
-// to generic (no coupon examples), never breaks the batch.
-const PARSE_BOT_SCRAPER_ID = "cffeaf1e-b13f-42de-9478-4188b90d83ae"; // Coupons.com API on Parse.bot -- verify against your own dashboard if this ever 404s, marketplace IDs can differ from call IDs
-const GROCERY_KEYWORDS = ["grocery", "food", "snack", "dairy", "beverage", "frozen", "meat", "produce", "household", "coffee", "cereal"];
-
-async function fetchGroceryCoupons() {
-  const key = process.env.PARSE_API_KEY;
-  if (!key) return [];
-  try {
-    const res = await fetch(`https://api.parse.bot/scraper/${PARSE_BOT_SCRAPER_ID}/get_top_coupons`, {
-      headers: { "X-API-Key": key },
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const offers = data.top_offers || data.offers || [];
-    // Loosely filter toward grocery/CPG-relevant offers where a category is present;
-    // if no category field exists on this response shape, just take what's returned.
-    const filtered = offers.filter((o) => {
-      const cat = (o.category_description || o.description || o.title || "").toLowerCase();
-      return GROCERY_KEYWORDS.some((kw) => cat.includes(kw)) || !o.category_description;
-    });
-    return (filtered.length ? filtered : offers).slice(0, 5);
-  } catch (e) {
-    console.error("[content-queue] coupon fetch failed:", e.message);
-    return [];
-  }
-}
-
 
 // ── Facebook: evergreen drafts (no API access exists to monitor these
 // groups, so this generates fresh ready-to-paste posts on a cadence
@@ -100,15 +67,10 @@ const FB_GROUPS = [
   { name: "Digital Coupon Deals", angle: "Ibotta / Checkout 51 / store-app coupons" },
 ];
 
-async function generateFbDrafts(coupons) {
-  const hasCoupons = coupons && coupons.length > 0;
-  const couponContext = hasCoupons
-    ? `\n\nReal current coupons to optionally reference (use at most one, only if it fits naturally, and describe it accurately -- don't invent details beyond what's given):\n${coupons.slice(0, 5).map(c => `- ${c.brand || c.retailer_name || c.title || 'Offer'}: ${c.value || c.description || ''}`).join("\n")}`
-    : "";
-
+async function generateFbDrafts() {
   const prompt = `Write 2 short, genuine, non-salesy Facebook posts (60-90 words each) that a real solo indie founder could post in grocery-deal-hunting Facebook groups.
 
-Context: I built Fern, an app that scans a grocery store's weekly sale circular (just a photo) and instantly turns the deals into AI-generated recipes and a shopping list -- so you plan meals around what's actually on sale instead of guessing.${couponContext}
+Context: I built Fern, an app that scans a grocery store's weekly sale circular (just a photo) and instantly turns the deals into AI-generated recipes and a shopping list -- so you plan meals around what's actually on sale instead of guessing.
 
 Rules: sound like a real person sharing something they made, not an ad. No emoji spam, no "check out my app!!" energy, no exclamation-point overload. It's fine to mention the app by name once per post. Vary the angle between the two posts (one about saving money specifically, one about meal-planning stress/mental load).
 
@@ -204,8 +166,7 @@ export default async (req) => {
   }
 
   try {
-    const coupons = await fetchGroceryCoupons();
-    const [fbDrafts, redditDrafts] = await Promise.all([generateFbDrafts(coupons), generateRedditDrafts()]);
+    const [fbDrafts, redditDrafts] = await Promise.all([generateFbDrafts(), generateRedditDrafts()]);
     const newItems = [...fbDrafts, ...redditDrafts];
 
     const store = getStore("content-queue");
@@ -218,7 +179,7 @@ export default async (req) => {
     await store.setJSON("items", merged);
 
     return new Response(
-      JSON.stringify({ success: true, generated: trulyNew.length, fb: fbDrafts.length, reddit: redditDrafts.length, coupons_used: coupons.length }),
+      JSON.stringify({ success: true, generated: trulyNew.length, fb: fbDrafts.length, reddit: redditDrafts.length }),
       { headers }
     );
   } catch (e) {
