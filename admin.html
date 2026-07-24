@@ -201,6 +201,60 @@
       .stats-row { grid-template-columns: 1fr 1fr; }
       .dashboard-body { padding: 16px; }
     }
+
+    /* ── automation roadmap ── */
+    .roadmap-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 700px) { .roadmap-stats { grid-template-columns: 1fr 1fr; } }
+    .roadmap-stat { background: #1a1407; border: 1px solid rgba(200,146,42,.15); padding: 18px; text-align: center; }
+    .roadmap-stat .rs-num { font-family: 'Playfair Display', serif; font-size: 30px; line-height: 1; }
+    .roadmap-stat .rs-label { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+    .roadmap-stat.buildable .rs-num { color: #6dbf7e; }
+    .roadmap-stat.blocked .rs-num { color: var(--gold-light); }
+    .roadmap-stat.bigger .rs-num { color: #7fb3d5; }
+    .roadmap-stat.rejected .rs-num { color: #e07060; }
+
+    .roadmap-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .rf-btn {
+      padding: 7px 16px; font-family: 'Space Mono', monospace; font-size: 9px;
+      letter-spacing: .12em; text-transform: uppercase; cursor: pointer;
+      border: 1px solid rgba(200,146,42,.25); background: transparent; color: var(--muted);
+      transition: all .15s;
+    }
+    .rf-btn:hover { color: var(--warm); }
+    .rf-btn.active { background: rgba(200,146,42,.15); border-color: var(--gold); color: var(--gold-light); }
+
+    .roadmap-grid { display: flex; flex-direction: column; gap: 12px; }
+    .rc-card {
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+      border-left: 3px solid var(--muted); padding: 18px 20px;
+      display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap;
+    }
+    .rc-card.buildable { border-left-color: #6dbf7e; }
+    .rc-card.blocked { border-left-color: var(--gold); }
+    .rc-card.bigger { border-left-color: #7fb3d5; }
+    .rc-card.rejected { border-left-color: #e07060; opacity: .72; }
+    .rc-main { flex: 1; min-width: 240px; }
+    .rc-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+    .rc-title { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--warm); }
+    .rc-tag {
+      font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: .12em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 2px; color: var(--muted); background: rgba(255,255,255,.06);
+    }
+    .rc-status {
+      font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: .12em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 2px;
+    }
+    .rc-status.buildable { background: rgba(109,191,126,.15); color: #6dbf7e; }
+    .rc-status.blocked { background: rgba(200,146,42,.15); color: var(--gold-light); }
+    .rc-status.bigger { background: rgba(127,179,213,.15); color: #7fb3d5; }
+    .rc-status.rejected { background: rgba(224,112,96,.15); color: #e07060; }
+    .rc-desc { font-size: 14px; color: #ccc; line-height: 1.55; max-width: 640px; }
+    .rc-effort { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 8px; letter-spacing: .05em; }
+    .rc-priority { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+    .rc-priority select {
+      background: #1a1407; color: var(--warm); border: 1px solid rgba(200,146,42,.3);
+      font-family: 'Space Mono', monospace; font-size: 10px; padding: 7px 10px; letter-spacing: .05em;
+    }
   </style>
 </head>
 <body>
@@ -239,7 +293,24 @@
       <div class="stat-card"><div class="stat-num" id="stat-unsub">—</div><div class="stat-label">Unsubscribed</div></div>
     </div>
 
-    <!-- Actions -->
+    <!-- Automation Roadmap -->
+    <div class="section">
+      <p class="section-head">Growth Automation Roadmap</p>
+
+      <div class="roadmap-stats" id="roadmap-stats"></div>
+
+      <div class="roadmap-filters" id="roadmap-filters">
+        <button class="rf-btn active" data-filter="all">All</button>
+        <button class="rf-btn" data-filter="buildable">✅ Buildable Now</button>
+        <button class="rf-btn" data-filter="blocked">🔶 Blocked</button>
+        <button class="rf-btn" data-filter="bigger">🔵 Bigger Project</button>
+        <button class="rf-btn" data-filter="rejected">🔴 Rejected</button>
+      </div>
+
+      <div class="roadmap-grid" id="roadmap-grid"></div>
+    </div>
+
+    <!-- Newsletter Controls -->
     <div class="section">
       <p class="section-head">Newsletter Controls</p>
       <div class="action-row">
@@ -379,6 +450,7 @@
     loadIssues();
     loadHealth();
     loadSecurityLog();
+    renderRoadmap();
   }
 
   async function loadStats() {
@@ -545,6 +617,121 @@
     } else {
       msg.textContent = data.error || 'Done.';
     }
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // GROWTH AUTOMATION ROADMAP
+  // Planning list only — no backend, no live data. Priority picks
+  // persist to this browser's localStorage so review sessions survive
+  // a refresh. Compiled from the 2026-07-23 planning conversation.
+  // ══════════════════════════════════════════════════════════════════
+  const AUTOMATION_ROADMAP = [
+    // ── buildable now ──────────────────────────────────────────────
+    { id:'weekly-deals', title:'Weekly "Biggest Deals" Digest', category:'Content & SEO', status:'buildable', effort:'Low effort',
+      desc:'Auto-scan circular data already sitting in Supabase, AI-generate a post, publish automatically. No new accounts needed.' },
+    { id:'seo-pages', title:'Comparison / SEO Landing Pages', category:'Content & SEO', status:'buildable', effort:'Medium effort',
+      desc:'"Instacart alternative," "avoid grocery delivery fees" — auto-generated and periodically refreshed, built on the real Instacart fee/markup research already pulled.' },
+    { id:'blogger-spotlight', title:'Blogger Spotlight Content', category:'Content & SEO', status:'buildable', effort:'Low effort',
+      desc:'Auto-generate a "blogger of the week" feature pulling real stats (top earner, most saves) from Blogger Cookbook\'s own data.' },
+    { id:'blogger-digest', title:'Blogger Performance Digest', category:'Retention', status:'buildable', effort:'Low effort',
+      desc:'Automated email to the 2,400+ bloggers showing their stats/earnings — keeps them engaged, reuses this newsletter\'s existing send infrastructure.' },
+    { id:'winback', title:'Inactive User Win-Back Sequence', category:'Retention', status:'buildable', effort:'Medium effort',
+      desc:'Automated email to churned/inactive free users, pulling from the main Fern Supabase user_data table.' },
+    { id:'metrics-digest', title:'Weekly Metrics Digest (internal)', category:'Internal Ops', status:'buildable', effort:'Low effort',
+      desc:'Signups, conversion, revenue — pulled automatically and emailed so the pro forma plan stays honestly tracked against reality, not just checked manually.' },
+    { id:'competitor-monitor', title:'Weekly Competitor Monitor', category:'Intelligence', status:'buildable', effort:'Low effort',
+      desc:'Auto-search Instacart/Kroger/Cooklist for pricing or feature changes, AI-summarize, email a digest.' },
+    { id:'reddit-discovery', title:'Reddit Opportunity Discovery Digest', category:'Community', status:'buildable', effort:'Medium effort',
+      desc:'Auto-scan r/Frugal and similar subs for relevant threads, AI-draft a suggested reply, email it for manual review and posting. Discovery is automated — posting stays human, since Reddit\'s anti-spam ML actively detects fully-autonomous posting.' },
+
+    // ── blocked on something external ────────────────────────────
+    { id:'blogger-discovery', title:'Automated Blogger Discovery', category:'Acquisition', status:'blocked', effort:'Medium effort',
+      desc:'Technically buildable, but needs a search API key (Google Custom Search or similar) that isn\'t set up yet.' },
+    { id:'blogger-outreach', title:'Automated Blogger Outreach Emails', category:'Acquisition', status:'blocked', effort:'Medium effort',
+      desc:'Same blocker as discovery, plus a real risk: routing cold outreach through this newsletter\'s email relay could hurt its sender reputation and get the newsletter itself flagged as spam. Needs its own dedicated email setup.' },
+    { id:'pr-pitching', title:'PR / Journalist Pitching Automation', category:'PR', status:'blocked', effort:'High effort',
+      desc:'Needs a real media contact database (Prowly, Muck Rack, etc.) — a genuine subscription cost, not something to fake with a workaround.' },
+    { id:'instacart-affiliate', title:'Instacart Affiliate Revenue', category:'Revenue', status:'blocked', effort:'Done, blocked on approval',
+      desc:'Web app UI + backend already fully restored (recipe modal, search results, meal plan, Shopping List page). Blocked only on Instacart Developer Platform approval — INSTACART_API_KEY + INSTACART_PARTNER_ID. A business/BD application, not a code task.' },
+
+    // ── bigger, separate project ─────────────────────────────────
+    { id:'tiktok-posting', title:'TikTok Auto-Posting', category:'Social', status:'bigger', effort:'High effort',
+      desc:'A real, official API exists (Content Posting API), but it requires TikTok\'s 2-4 week app audit before posts go public, plus an actual AI video-generation pipeline — not just text. Worth doing eventually, not a quick win alongside the others.' },
+
+    // ── decided not to build ─────────────────────────────────────
+    { id:'fb-group-posting', title:'Facebook Group Auto-Posting', category:'Social', status:'rejected', effort:'—',
+      desc:'Meta removed the API permission for posting into groups you don\'t own back in April 2024. The only remaining workarounds hijack a real logged-in browser session and violate Facebook\'s Terms of Service — real risk to a personal account. Not building this.' },
+    { id:'reddit-autopost', title:'Fully Autonomous Reddit Posting', category:'Community', status:'rejected', effort:'—',
+      desc:'Against Reddit\'s content policy and actively detected by their anti-spam ML models, even when varied to look human. Replaced by the Reddit Opportunity Discovery Digest above — discovery automated, the actual posting stays a real person.' },
+  ];
+
+  const STATUS_META = {
+    buildable: { emoji:'✅', label:'Buildable Now' },
+    blocked:   { emoji:'🔶', label:'Blocked' },
+    bigger:    { emoji:'🔵', label:'Bigger Project' },
+    rejected:  { emoji:'🔴', label:'Rejected' },
+  };
+
+  let _roadmapFilter = 'all';
+
+  function _priorityKey(id) { return 'roadmap_priority_' + id; }
+  function _getPriority(id) { return localStorage.getItem(_priorityKey(id)) || 'none'; }
+  function _setPriority(id, val) { localStorage.setItem(_priorityKey(id), val); }
+
+  function renderRoadmap() {
+    // Stat counts
+    const counts = { buildable:0, blocked:0, bigger:0, rejected:0 };
+    AUTOMATION_ROADMAP.forEach(item => counts[item.status]++);
+    const statsEl = document.getElementById('roadmap-stats');
+    if (statsEl) {
+      statsEl.innerHTML = Object.keys(STATUS_META).map(status =>
+        `<div class="roadmap-stat ${status}"><div class="rs-num">${counts[status]}</div><div class="rs-label">${STATUS_META[status].emoji} ${STATUS_META[status].label}</div></div>`
+      ).join('');
+    }
+
+    // Filter buttons (wire once)
+    const filtersEl = document.getElementById('roadmap-filters');
+    if (filtersEl && !filtersEl._wired) {
+      filtersEl._wired = true;
+      filtersEl.querySelectorAll('.rf-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _roadmapFilter = btn.dataset.filter;
+          filtersEl.querySelectorAll('.rf-btn').forEach(b => b.classList.toggle('active', b === btn));
+          renderRoadmapGrid();
+        });
+      });
+    }
+
+    renderRoadmapGrid();
+  }
+
+  function renderRoadmapGrid() {
+    const gridEl = document.getElementById('roadmap-grid');
+    if (!gridEl) return;
+    const items = _roadmapFilter === 'all' ? AUTOMATION_ROADMAP : AUTOMATION_ROADMAP.filter(i => i.status === _roadmapFilter);
+    gridEl.innerHTML = items.map(item => {
+      const meta = STATUS_META[item.status];
+      const priority = _getPriority(item.id);
+      return `<div class="rc-card ${item.status}">
+        <div class="rc-main">
+          <div class="rc-title-row">
+            <span class="rc-title">${item.title}</span>
+            <span class="rc-tag">${item.category}</span>
+            <span class="rc-status ${item.status}">${meta.emoji} ${meta.label}</span>
+          </div>
+          <div class="rc-desc">${item.desc}</div>
+          <div class="rc-effort">${item.effort}</div>
+        </div>
+        <div class="rc-priority">
+          <select onchange="_setPriority('${item.id}', this.value)" ${item.status === 'rejected' ? 'disabled' : ''}>
+            <option value="none" ${priority==='none'?'selected':''}>No priority set</option>
+            <option value="next" ${priority==='next'?'selected':''}>🟢 Build next</option>
+            <option value="soon" ${priority==='soon'?'selected':''}>🟡 Build soon</option>
+            <option value="later" ${priority==='later'?'selected':''}>⚪ Later</option>
+          </select>
+        </div>
+      </div>`;
+    }).join('') || '<div style="color:var(--muted);font-style:italic;padding:24px 0">Nothing in this filter.</div>';
   }
 </script>
 </body>
