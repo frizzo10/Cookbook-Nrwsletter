@@ -223,7 +223,15 @@
     .rf-btn:hover { color: var(--warm); }
     .rf-btn.active { background: rgba(200,146,42,.15); border-color: var(--gold); color: var(--gold-light); }
 
-    .roadmap-grid { display: flex; flex-direction: column; gap: 12px; }
+    .roadmap-grid { display: flex; flex-direction: column; gap: 32px; }
+    .rc-section-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+    .rc-section-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--gold-light); }
+    .rc-section-count {
+      font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted);
+      background: rgba(255,255,255,.06); padding: 1px 9px; border-radius: 20px;
+    }
+    .rc-section-sub { font-size: 13px; color: var(--muted); font-style: italic; margin-bottom: 14px; }
+    .rc-section-cards { display: flex; flex-direction: column; gap: 12px; }
     .rc-card {
       background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
       border-left: 3px solid var(--muted); padding: 18px 20px;
@@ -572,44 +580,56 @@
   // a refresh. Compiled from the 2026-07-23 planning conversation.
   // ══════════════════════════════════════════════════════════════════
   const AUTOMATION_ROADMAP = [
+    // ══ FERN ══════════════════════════════════════════════════════
     // ── buildable now ──────────────────────────────────────────────
-    { id:'weekly-deals', title:'Weekly "Biggest Deals" Digest', category:'Content & SEO', status:'buildable', effort:'Low effort',
+    { id:'weekly-deals', title:'Weekly "Biggest Deals" Digest', section:'fern', category:'Content & SEO', status:'buildable', effort:'Low effort',
       desc:'Auto-scan circular data already sitting in Supabase, AI-generate a post, publish automatically. No new accounts needed.' },
-    { id:'seo-pages', title:'Comparison / SEO Landing Pages', category:'Content & SEO', status:'buildable', effort:'Medium effort',
+    { id:'seo-pages', title:'Comparison / SEO Landing Pages', section:'fern', category:'Content & SEO', status:'buildable', effort:'Medium effort',
       desc:'"Instacart alternative," "avoid grocery delivery fees" — auto-generated and periodically refreshed, built on the real Instacart fee/markup research already pulled.' },
-    { id:'blogger-spotlight', title:'Blogger Spotlight Content', category:'Content & SEO', status:'buildable', effort:'Low effort',
-      desc:'Auto-generate a "blogger of the week" feature pulling real stats (top earner, most saves) from Blogger Cookbook\'s own data.' },
-    { id:'blogger-digest', title:'Blogger Performance Digest', category:'Retention', status:'buildable', effort:'Low effort',
-      desc:'Automated email to the 2,400+ bloggers showing their stats/earnings — keeps them engaged, reuses this newsletter\'s existing send infrastructure.' },
-    { id:'winback', title:'Inactive User Win-Back Sequence', category:'Retention', status:'buildable', effort:'Medium effort',
+    { id:'winback', title:'Inactive User Win-Back Sequence', section:'fern', category:'Retention', status:'buildable', effort:'Medium effort',
       desc:'Automated email to churned/inactive free users, pulling from the main Fern Supabase user_data table.' },
-    { id:'metrics-digest', title:'Weekly Metrics Digest (internal)', category:'Internal Ops', status:'buildable', effort:'Low effort',
+    { id:'metrics-digest', title:'Weekly Metrics Digest (internal)', section:'fern', category:'Internal Ops', status:'buildable', effort:'Low effort',
       desc:'Signups, conversion, revenue — pulled automatically and emailed so the pro forma plan stays honestly tracked against reality, not just checked manually.' },
-    { id:'competitor-monitor', title:'Weekly Competitor Monitor', category:'Intelligence', status:'buildable', effort:'Low effort',
+    { id:'competitor-monitor', title:'Weekly Competitor Monitor', section:'fern', category:'Intelligence', status:'buildable', effort:'Low effort',
       desc:'Auto-search Instacart/Kroger/Cooklist for pricing or feature changes, AI-summarize, email a digest.' },
-    { id:'reddit-discovery', title:'Reddit Opportunity Discovery Digest', category:'Community', status:'buildable', effort:'Medium effort',
+    { id:'reddit-discovery', title:'Reddit Opportunity Discovery Digest', section:'fern', category:'Community', status:'buildable', effort:'Medium effort',
       desc:'Auto-scan r/Frugal and similar subs for relevant threads, AI-draft a suggested reply, email it for manual review and posting. Discovery is automated — posting stays human, since Reddit\'s anti-spam ML actively detects fully-autonomous posting.' },
 
     // ── blocked on something external ────────────────────────────
-    { id:'blogger-discovery', title:'Automated Blogger Discovery', category:'Acquisition', status:'blocked', effort:'Medium effort',
-      desc:'Technically buildable, but needs a search API key (Google Custom Search or similar) that isn\'t set up yet.' },
-    { id:'blogger-outreach', title:'Automated Blogger Outreach Emails', category:'Acquisition', status:'blocked', effort:'Medium effort',
-      desc:'Same blocker as discovery, plus a real risk: routing cold outreach through this newsletter\'s email relay could hurt its sender reputation and get the newsletter itself flagged as spam. Needs its own dedicated email setup.' },
-    { id:'pr-pitching', title:'PR / Journalist Pitching Automation', category:'PR', status:'blocked', effort:'High effort',
+    { id:'pr-pitching', title:'PR / Journalist Pitching Automation', section:'fern', category:'PR', status:'blocked', effort:'High effort',
       desc:'Needs a real media contact database (Prowly, Muck Rack, etc.) — a genuine subscription cost, not something to fake with a workaround.' },
-    { id:'instacart-affiliate', title:'Instacart Affiliate Revenue', category:'Revenue', status:'blocked', effort:'Done, blocked on approval',
+    { id:'instacart-affiliate', title:'Instacart Affiliate Revenue', section:'fern', category:'Revenue', status:'blocked', effort:'Done, blocked on approval',
       desc:'Web app UI + backend already fully restored (recipe modal, search results, meal plan, Shopping List page). Blocked only on Instacart Developer Platform approval — INSTACART_API_KEY + INSTACART_PARTNER_ID. A business/BD application, not a code task.' },
 
     // ── bigger, separate project ─────────────────────────────────
-    { id:'tiktok-posting', title:'TikTok Auto-Posting', category:'Social', status:'bigger', effort:'High effort',
+    { id:'tiktok-posting', title:'TikTok Auto-Posting', section:'fern', category:'Social', status:'bigger', effort:'High effort',
       desc:'A real, official API exists (Content Posting API), but it requires TikTok\'s 2-4 week app audit before posts go public, plus an actual AI video-generation pipeline — not just text. Worth doing eventually, not a quick win alongside the others.' },
 
     // ── decided not to build ─────────────────────────────────────
-    { id:'fb-group-posting', title:'Facebook Group Auto-Posting', category:'Social', status:'rejected', effort:'—',
+    { id:'fb-group-posting', title:'Facebook Group Auto-Posting', section:'fern', category:'Social', status:'rejected', effort:'—',
       desc:'Meta removed the API permission for posting into groups you don\'t own back in April 2024. The only remaining workarounds hijack a real logged-in browser session and violate Facebook\'s Terms of Service — real risk to a personal account. Not building this.' },
-    { id:'reddit-autopost', title:'Fully Autonomous Reddit Posting', category:'Community', status:'rejected', effort:'—',
+    { id:'reddit-autopost', title:'Fully Autonomous Reddit Posting', section:'fern', category:'Community', status:'rejected', effort:'—',
       desc:'Against Reddit\'s content policy and actively detected by their anti-spam ML models, even when varied to look human. Replaced by the Reddit Opportunity Discovery Digest above — discovery automated, the actual posting stays a real person.' },
+
+    // ══ BLOGGER ═══════════════════════════════════════════════════
+    // ── buildable now ──────────────────────────────────────────────
+    { id:'blogger-spotlight', title:'Blogger Spotlight Content', section:'blogger', category:'Content & SEO', status:'buildable', effort:'Low effort',
+      desc:'Auto-generate a "blogger of the week" feature pulling real stats (top earner, most saves) from Blogger Cookbook\'s own data.' },
+    { id:'blogger-digest', title:'Blogger Performance Digest', section:'blogger', category:'Retention', status:'buildable', effort:'Low effort',
+      desc:'Automated email to the 2,400+ bloggers showing their stats/earnings — keeps them engaged, reuses this newsletter\'s existing send infrastructure.' },
+
+    // ── blocked on something external ────────────────────────────
+    { id:'blogger-discovery', title:'Automated Blogger Discovery', section:'blogger', category:'Acquisition', status:'blocked', effort:'Medium effort',
+      desc:'Technically buildable, but needs a search API key (Google Custom Search or similar) that isn\'t set up yet.' },
+    { id:'blogger-outreach', title:'Automated Blogger Outreach Emails', section:'blogger', category:'Acquisition', status:'blocked', effort:'Medium effort',
+      desc:'Same blocker as discovery, plus a real risk: routing cold outreach through this newsletter\'s email relay could hurt its sender reputation and get the newsletter itself flagged as spam. Needs its own dedicated email setup.' },
   ];
+
+  const SECTION_META = {
+    fern: { title: 'Automation for Fern', sub: 'Grows and runs the main Fern app and brand' },
+    blogger: { title: 'Blogger Program Automation', sub: 'Grows and runs the Blogger Cookbook partner network' },
+  };
+
 
   const STATUS_META = {
     buildable: { emoji:'✅', label:'Buildable Now' },
@@ -651,14 +671,10 @@
     renderRoadmapGrid();
   }
 
-  function renderRoadmapGrid() {
-    const gridEl = document.getElementById('roadmap-grid');
-    if (!gridEl) return;
-    const items = _roadmapFilter === 'all' ? AUTOMATION_ROADMAP : AUTOMATION_ROADMAP.filter(i => i.status === _roadmapFilter);
-    gridEl.innerHTML = items.map(item => {
-      const meta = STATUS_META[item.status];
-      const priority = _getPriority(item.id);
-      return `<div class="rc-card ${item.status}">
+  function _cardHtml(item) {
+    const meta = STATUS_META[item.status];
+    const priority = _getPriority(item.id);
+    return `<div class="rc-card ${item.status}">
         <div class="rc-main">
           <div class="rc-title-row">
             <span class="rc-title">${item.title}</span>
@@ -677,7 +693,30 @@
           </select>
         </div>
       </div>`;
-    }).join('') || '<div style="color:var(--muted);font-style:italic;padding:24px 0">Nothing in this filter.</div>';
+  }
+
+  function renderRoadmapGrid() {
+    const gridEl = document.getElementById('roadmap-grid');
+    if (!gridEl) return;
+    const filtered = _roadmapFilter === 'all' ? AUTOMATION_ROADMAP : AUTOMATION_ROADMAP.filter(i => i.status === _roadmapFilter);
+
+    // Fern first, Blogger second — fixed order, not alphabetical
+    const sectionOrder = ['fern', 'blogger'];
+    const html = sectionOrder.map(sectionKey => {
+      const items = filtered.filter(i => i.section === sectionKey);
+      if (!items.length) return '';
+      const meta = SECTION_META[sectionKey];
+      return `<div class="rc-section">
+        <div class="rc-section-head">
+          <span class="rc-section-title">${meta.title}</span>
+          <span class="rc-section-count">${items.length}</span>
+        </div>
+        <div class="rc-section-sub">${meta.sub}</div>
+        <div class="rc-section-cards">${items.map(_cardHtml).join('')}</div>
+      </div>`;
+    }).join('');
+
+    gridEl.innerHTML = html || '<div style="color:var(--muted);font-style:italic;padding:24px 0">Nothing in this filter.</div>';
   }
 
   // Now that every const/function above is fully declared, it's safe to
