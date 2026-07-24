@@ -259,27 +259,14 @@
 </head>
 <body>
 
-<!-- Login -->
-<div id="login-screen">
-  <div class="login-box">
-    <h1>The Cultured Table</h1>
-    <p>Admin Panel</p>
-    <input type="password" id="pw-input" placeholder="Password" autocomplete="current-password">
-    <div id="turnstile-login" style="margin:12px 0"></div>
-    <button onclick="login()">Enter</button>
-    <p id="login-error"></p>
-  </div>
-</div>
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-
 <!-- Dashboard -->
 <div id="dashboard">
+
   <div class="topbar">
     <div class="topbar-title">
       The Cultured Table
       <span>Admin Panel</span>
     </div>
-    <button class="topbar-logout" onclick="logout()">Log Out</button>
   </div>
 
   <div class="dashboard-body">
@@ -378,60 +365,19 @@
 </div>
 
 <script>
-  let _token = sessionStorage.getItem('admin_token') || '';
-
-  // Auto-login if token exists
-  if (_token) showDashboard();
-
-  let _turnstileWidgetId = null;
-  fetch('/.netlify/functions/get-config').then(r => r.json()).then(cfg => {
-    if (cfg.turnstileSiteKey && window.turnstile) {
-      _turnstileWidgetId = turnstile.render('#turnstile-login', { sitekey: cfg.turnstileSiteKey });
-    } else if (cfg.turnstileSiteKey) {
-      // api.js hasn't loaded yet — wait for it
-      window.addEventListener('load', () => {
-        if (window.turnstile) _turnstileWidgetId = turnstile.render('#turnstile-login', { sitekey: cfg.turnstileSiteKey });
-      });
-    }
-  }).catch(() => {});
-
-  async function login() {
-    const pw = document.getElementById('pw-input').value;
-    const err = document.getElementById('login-error');
-    err.textContent = '';
-
-    const turnstileToken = _turnstileWidgetId !== null && window.turnstile ? turnstile.getResponse(_turnstileWidgetId) : null;
-
-    const res = await fetch('/.netlify/functions/admin-auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pw, turnstileToken }),
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      _token = data.token;
-      sessionStorage.setItem('admin_token', _token);
-      showDashboard();
-    } else {
-      err.textContent = data.error || 'Incorrect password.';
-      if (_turnstileWidgetId !== null && window.turnstile) turnstile.reset(_turnstileWidgetId);
-    }
-  }
-
-  document.getElementById('pw-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') login();
-  });
-
-  function logout() {
-    sessionStorage.removeItem('admin_token');
-    _token = '';
-    document.getElementById('dashboard').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
-  }
+  // Password protection removed entirely per explicit decision (2026-07-23) --
+  // this admin panel is now intentionally public, no login required.
+  // Token is a placeholder; admin-api.js no longer checks it.
+  // To restore protection later: revert this block to the original
+  // token-check-and-show-login-screen logic, and revert admin-api.js's
+  // verifyToken() to check against the admin-sessions store again.
+  let _token = 'public';
+  // showDashboard() is called at the bottom of this script, not here --
+  // it depends on AUTOMATION_ROADMAP (const, declared later in this file)
+  // via renderRoadmap(), and calling it this early hits that declaration
+  // before it's initialized (temporal dead zone).
 
   function showDashboard() {
-    document.getElementById('login-screen').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
     loadAll();
   }
@@ -733,6 +679,10 @@
       </div>`;
     }).join('') || '<div style="color:var(--muted);font-style:italic;padding:24px 0">Nothing in this filter.</div>';
   }
+
+  // Now that every const/function above is fully declared, it's safe to
+  // actually show the dashboard.
+  showDashboard();
 </script>
 </body>
 </html>
