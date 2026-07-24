@@ -263,6 +263,50 @@
       background: #1a1407; color: var(--warm); border: 1px solid rgba(200,146,42,.3);
       font-family: 'Space Mono', monospace; font-size: 10px; padding: 7px 10px; letter-spacing: .05em;
     }
+
+    /* ── content queue ── */
+    .cq-toolbar { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+    .cq-generate-btn {
+      padding: 12px 24px; font-family: 'Space Mono', monospace; font-size: 10px;
+      letter-spacing: .15em; text-transform: uppercase; cursor: pointer;
+      border: 1px solid var(--gold); background: rgba(200,146,42,.15); color: var(--gold-light);
+      transition: all .2s;
+    }
+    .cq-generate-btn:hover { background: rgba(200,146,42,.28); }
+    .cq-generate-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .cq-msg { font-size: 13px; font-style: italic; color: var(--gold-light); min-height: 18px; }
+    .cq-filters { display: flex; gap: 8px; margin-bottom: 16px; }
+    .cq-item {
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+      border-left: 3px solid var(--gold); padding: 16px 18px; margin-bottom: 12px;
+    }
+    .cq-item.posted { border-left-color: #6dbf7e; opacity: .65; }
+    .cq-item.dismissed { border-left-color: var(--muted); opacity: .45; }
+    .cq-item-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+    .cq-platform {
+      font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+      padding: 2px 9px; border-radius: 2px;
+    }
+    .cq-platform.fb { background: rgba(88,138,220,.18); color: #8ab0f0; }
+    .cq-platform.reddit { background: rgba(224,112,96,.15); color: #ff7050; }
+    .cq-group { font-size: 12px; color: var(--gold-light); font-family: 'Space Mono', monospace; }
+    .cq-title { font-size: 14px; color: var(--warm); font-style: italic; flex: 1; min-width: 180px; }
+    .cq-draft {
+      background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.06); border-radius: 3px;
+      padding: 12px 14px; font-size: 14px; color: #ddd; line-height: 1.6; margin-bottom: 10px;
+      white-space: pre-wrap;
+    }
+    .cq-source { font-size: 11px; margin-bottom: 10px; }
+    .cq-source a { color: var(--gold-light); }
+    .cq-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .cq-btn {
+      padding: 7px 14px; font-family: 'Space Mono', monospace; font-size: 9px;
+      letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+      border: 1px solid rgba(200,146,42,.3); background: transparent; color: var(--gold-light);
+    }
+    .cq-btn:hover { background: rgba(200,146,42,.12); }
+    .cq-btn.posted-btn { border-color: rgba(109,191,126,.4); color: #6dbf7e; }
+    .cq-btn.dismiss-btn { border-color: rgba(224,112,96,.3); color: #e07060; }
   </style>
 </head>
 <body>
@@ -303,6 +347,29 @@
       </div>
 
       <div class="roadmap-grid" id="roadmap-grid"></div>
+    </div>
+
+    <!-- Community Content Queue -->
+    <div class="section">
+      <p class="section-head">Community Content Queue</p>
+      <div class="cq-toolbar">
+        <button class="cq-generate-btn" id="cq-generate-btn" onclick="generateContentQueue()">✦ Generate New Batch Now</button>
+        <span class="cq-msg" id="cq-msg"></span>
+      </div>
+      <p style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:16px;max-width:640px">
+        Facebook drafts are fresh evergreen posts (no API can monitor those groups). Reddit items are real threads
+        found in r/Frugal with a drafted reply. Nothing posts itself — copy the draft, paste it in yourself, then
+        mark it posted. Also runs automatically every Monday and Thursday.
+      </p>
+      <div class="cq-filters" id="cq-filters">
+        <button class="rf-btn active" data-cqfilter="pending">Pending</button>
+        <button class="rf-btn" data-cqfilter="posted">Posted</button>
+        <button class="rf-btn" data-cqfilter="dismissed">Dismissed</button>
+        <button class="rf-btn" data-cqfilter="all">All</button>
+      </div>
+      <div id="cq-list">
+        <div style="color:var(--muted);font-style:italic;font-size:14px">Loading…</div>
+      </div>
     </div>
 
     <!-- Newsletter Controls -->
@@ -405,6 +472,7 @@
     loadHealth();
     loadSecurityLog();
     renderRoadmap();
+    loadContentQueue();
   }
 
   async function loadStats() {
@@ -717,6 +785,114 @@
     }).join('');
 
     gridEl.innerHTML = html || '<div style="color:var(--muted);font-style:italic;padding:24px 0">Nothing in this filter.</div>';
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // COMMUNITY CONTENT QUEUE
+  // Facebook: evergreen drafts (no monitoring API exists for those groups).
+  // Reddit: real thread discovery + drafted reply. Nothing posts itself —
+  // copy button + manual paste is the intended workflow.
+  // ══════════════════════════════════════════════════════════════════
+  let _cqFilter = 'pending';
+  let _cqItems = [];
+
+  async function loadContentQueue() {
+    try {
+      const res = await fetch('/.netlify/functions/content-queue-api');
+      const data = await res.json();
+      _cqItems = data.items || [];
+    } catch (e) {
+      _cqItems = [];
+    }
+    renderContentQueue();
+
+    const filtersEl = document.getElementById('cq-filters');
+    if (filtersEl && !filtersEl._wired) {
+      filtersEl._wired = true;
+      filtersEl.querySelectorAll('.rf-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _cqFilter = btn.dataset.cqfilter;
+          filtersEl.querySelectorAll('.rf-btn').forEach(b => b.classList.toggle('active', b === btn));
+          renderContentQueue();
+        });
+      });
+    }
+  }
+
+  function renderContentQueue() {
+    const listEl = document.getElementById('cq-list');
+    if (!listEl) return;
+    const items = _cqFilter === 'all' ? _cqItems : _cqItems.filter(i => i.status === _cqFilter);
+    if (!items.length) {
+      listEl.innerHTML = '<div style="color:var(--muted);font-style:italic;font-size:14px">Nothing here yet. Generate a batch, or check another filter.</div>';
+      return;
+    }
+    listEl.innerHTML = items.map(item => {
+      const platformLabel = item.type === 'fb' ? 'Facebook' : 'Reddit';
+      const sourceHtml = item.source_url
+        ? `<div class="cq-source">🔗 <a href="${item.source_url}" target="_blank" rel="noopener">View original thread</a></div>`
+        : '';
+      const actionsHtml = item.status === 'pending'
+        ? `<button class="cq-btn" onclick="copyDraft('${item.id}')">📋 Copy Draft</button>
+           <button class="cq-btn posted-btn" onclick="setCqStatus('${item.id}','posted')">✓ Mark Posted</button>
+           <button class="cq-btn dismiss-btn" onclick="setCqStatus('${item.id}','dismissed')">✕ Dismiss</button>`
+        : `<button class="cq-btn" onclick="copyDraft('${item.id}')">📋 Copy Draft</button>
+           <button class="cq-btn" onclick="setCqStatus('${item.id}','pending')">↺ Back to Pending</button>`;
+      return `<div class="cq-item ${item.status}" data-cqid="${item.id}">
+        <div class="cq-item-head">
+          <span class="cq-platform ${item.type}">${platformLabel}</span>
+          <span class="cq-group">${item.group}</span>
+          <span class="cq-title">${item.title}</span>
+        </div>
+        <div class="cq-draft" id="cq-draft-${item.id}">${item.draft}</div>
+        ${sourceHtml}
+        <div class="cq-actions">${actionsHtml}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function generateContentQueue() {
+    const btn = document.getElementById('cq-generate-btn');
+    const msg = document.getElementById('cq-msg');
+    btn.disabled = true;
+    msg.innerHTML = '<span class="spinner"></span> Researching and drafting… (takes ~20-40s)';
+    try {
+      const res = await fetch('/.netlify/functions/generate-content-queue', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        msg.textContent = `✓ Added ${data.generated} new item${data.generated === 1 ? '' : 's'} (${data.fb} Facebook, ${data.reddit} Reddit).`;
+        await loadContentQueue();
+      } else {
+        msg.textContent = data.error || 'Something went wrong.';
+      }
+    } catch (e) {
+      msg.textContent = 'Request failed — try again.';
+    }
+    btn.disabled = false;
+  }
+
+  function copyDraft(id) {
+    const el = document.getElementById('cq-draft-' + id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent).then(() => {
+      const item = _cqItems.find(i => i.id === id);
+      if (item) {
+        const original = el.textContent;
+        el.style.color = '#6dbf7e';
+        setTimeout(() => { el.style.color = ''; }, 600);
+      }
+    }).catch(() => {});
+  }
+
+  async function setCqStatus(id, status) {
+    try {
+      await fetch('/.netlify/functions/content-queue-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+      await loadContentQueue();
+    } catch (e) {}
   }
 
   // Now that every const/function above is fully declared, it's safe to
