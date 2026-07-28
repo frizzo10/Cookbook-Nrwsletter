@@ -56,3 +56,20 @@ curl -X POST https://cookbookai1.netlify.app/.netlify/functions/generate-newslet
 - Each gets a welcome email with an unsubscribe token
 - Unsubscribe link in every email → marks them as `unsubscribed: true`
 - List stored in Netlify Blobs under key `subscribers/list`
+
+## Growth Automations (added 2026-07-28)
+
+Six of the eight "Buildable Now" items from the Growth Automation Roadmap, shipped:
+
+| Automation | Function(s) | Schedule | Notes |
+|---|---|---|---|
+| Weekly Biggest Deals Digest | `generate-deals-digest.js`, `get-deals-digest.js` | Wed 8am UTC | Public page: `/deals.html`. Pulls recent `user_data.circular` rows from Fern's Supabase, AI writes it up. |
+| Comparison/SEO Landing Pages | `generate-seo-pages.js`, `get-seo-page.js` | 1st of month, 7am UTC | Public pages: `/compare/<slug>` (instacart-alternative, avoid-grocery-delivery-fees, best-grocery-budgeting-app). Grounded in real Fern pricing facts hardcoded in the prompt — edit `KNOWN_FACTS` if pricing changes. |
+| Inactive User Win-Back | `send-winback.js` | **Manual only** — admin panel "💌 Send Win-Back Batch" button | Deliberately not on cron since it emails real Fern users. Capped at 25/run, 45-day cooldown per user tracked in Blobs (`winback-sent` store). |
+| Weekly Metrics Digest (internal) | `metrics-digest.js` | Mon 8am UTC | Emails `ADMIN_ALERT_EMAIL`. Signups/active users from Supabase, subscriber stats, content-queue backlog. |
+| Weekly Competitor Monitor | `competitor-monitor.js` | Mon 9am UTC | Emails `ADMIN_ALERT_EMAIL`. Fetches Instacart/Kroger/Cooklist pages, AI diffs vs. last week's snapshot. Plain `fetch()`, not a real browser — heavily JS-rendered pages may return limited signal. |
+| Reddit Opportunity Discovery Digest | `generate-content-queue.js` (existing, extended) | Mon/Thu 10am UTC (existing) | Was already discovering+drafting; added the actual email notification step (`sendDigestEmail`) to `ADMIN_ALERT_EMAIL` so new drafts don't rely on remembering to check the admin panel. |
+
+**Not yet built:** Blogger Spotlight Content and Blogger Performance Digest — need the actual Supabase table/column names for blogger stats & emails (not guessed, to avoid emailing 2,400+ real bloggers off assumed schema).
+
+No new env vars required — all six reuse `GROQ_API_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `FROM_EMAIL`, `CRON_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and `ADMIN_ALERT_EMAIL`, all already configured on this site.
