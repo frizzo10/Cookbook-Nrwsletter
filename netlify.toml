@@ -23,6 +23,12 @@
 [functions."metrics-digest"]
   timeout = 30
 
+[functions."blogger-spotlight"]
+  timeout = 30
+
+[functions."blogger-digest"]
+  timeout = 60
+
 # Monthly cron — 1st of every month at 9am UTC
 [[scheduled_functions]]
   name = "generate-newsletter"
@@ -52,6 +58,16 @@
 [[scheduled_functions]]
   name = "generate-seo-pages"
   cron = "0 7 1 * *"
+
+# Weekly — Fridays 8am UTC
+[[scheduled_functions]]
+  name = "blogger-spotlight"
+  cron = "0 8 * * 5"
+
+# Monthly — 1st of every month, 9am UTC
+[[scheduled_functions]]
+  name = "blogger-digest"
+  cron = "0 9 1 * *"
 
 # Pretty URLs for SEO comparison pages: /compare/instacart-alternative
 # rewritten (not redirected) to the template page, so the address bar keeps
