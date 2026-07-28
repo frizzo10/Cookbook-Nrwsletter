@@ -73,6 +73,16 @@ Six of the eight "Buildable Now" items from the Growth Automation Roadmap, shipp
 | Blogger Spotlight Content | `blogger-spotlight.js`, `get-blogger-spotlight.js` | Fri 8am UTC | Public page: `/blogger-spotlight.html`. Features whichever active blogger leads on `total_saves` (falls back to top earner) from the new `bloggers` table. |
 | Blogger Performance Digest | `blogger-digest.js` | 1st of month, 9am UTC | Emails every active blogger in the `bloggers` table their own real stats (recipes, saves, clicks, earnings). Separate audience from the newsletter subscriber list. |
 
-All 8 "Buildable Now" items from the roadmap are now shipped.
+## Blogger Discovery + Outreach (added 2026-07-28)
+
+Covers two more roadmap items that shared the same blocker: **Automated Blogger Discovery** and **Automated Blogger Outreach Emails**, both handled by one pipeline (`blogger-discovery.js`, Tuesdays 10am UTC, or trigger manually via "🔍 Discover Bloggers Now" in the admin panel).
+
+- Searches via Google Custom Search API, extracts a contact email from each candidate site, AI-qualifies whether it's a genuine active food blog, then AI-drafts a personalized outreach pitch.
+- Drafts land in the **same Community Content Queue** as the Facebook/Reddit items (type: `blogger_outreach`) — reviewed and sent manually, exactly like those. This was a deliberate choice: it fully avoids the sender-reputation risk flagged on the roadmap for this item, since nothing here ever auto-sends.
+- Dedupes against both already-discovered candidates and bloggers already in the `bloggers` table.
+
+**Requires** (not yet configured — the function returns a clear error until these exist): `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_CX` — free tier via [Google Programmable Search Engine](https://programmablesearchengine.google.com/) (100 queries/day). Add both as Netlify env vars to activate.
+
+All 8 "Buildable Now" items, plus these 2 "Blocked" items (built, waiting on the search API key), are now shipped.
 
 No new env vars required — all six reuse `GROQ_API_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `FROM_EMAIL`, `CRON_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and `ADMIN_ALERT_EMAIL`, all already configured on this site.
