@@ -203,7 +203,8 @@
     }
 
     /* ── automation roadmap ── */
-    .roadmap-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .roadmap-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 900px) { .roadmap-stats { grid-template-columns: 1fr 1fr 1fr; } }
     @media (max-width: 700px) { .roadmap-stats { grid-template-columns: 1fr 1fr; } }
     .roadmap-stat { background: #1a1407; border: 1px solid rgba(200,146,42,.15); padding: 18px; text-align: center; }
     .roadmap-stat .rs-num { font-family: 'Playfair Display', serif; font-size: 30px; line-height: 1; }
@@ -256,6 +257,11 @@
     .rc-status.blocked { background: rgba(200,146,42,.15); color: var(--gold-light); }
     .rc-status.bigger { background: rgba(127,179,213,.15); color: #7fb3d5; }
     .rc-status.rejected { background: rgba(224,112,96,.15); color: #e07060; }
+    .rc-shipped {
+      font-family: 'Space Mono', monospace; font-size: 8px; letter-spacing: .12em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 2px; background: rgba(109,191,126,.28); color: #a8e6b5; border: 1px solid rgba(109,191,126,.4);
+    }
+    .rc-card.is-shipped { border-left-color: #6dbf7e; }
     .rc-desc { font-size: 14px; color: #ccc; line-height: 1.55; max-width: 640px; }
     .rc-effort { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 8px; letter-spacing: .05em; }
     .rc-priority { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
@@ -663,17 +669,17 @@
   const AUTOMATION_ROADMAP = [
     // ══ FERN ══════════════════════════════════════════════════════
     // ── buildable now ──────────────────────────────────────────────
-    { id:'weekly-deals', title:'Weekly "Biggest Deals" Digest', section:'fern', category:'Content & SEO', status:'buildable', effort:'Low effort',
+    { id:'weekly-deals', shipped:true, title:'Weekly "Biggest Deals" Digest', section:'fern', category:'Content & SEO', status:'buildable', effort:'Low effort',
       desc:'Auto-scan circular data already sitting in Supabase, AI-generate a post, publish automatically. No new accounts needed.' },
-    { id:'seo-pages', title:'Comparison / SEO Landing Pages', section:'fern', category:'Content & SEO', status:'buildable', effort:'Medium effort',
+    { id:'seo-pages', shipped:true, title:'Comparison / SEO Landing Pages', section:'fern', category:'Content & SEO', status:'buildable', effort:'Medium effort',
       desc:'"Instacart alternative," "avoid grocery delivery fees" — auto-generated and periodically refreshed, built on the real Instacart fee/markup research already pulled.' },
-    { id:'winback', title:'Inactive User Win-Back Sequence', section:'fern', category:'Retention', status:'buildable', effort:'Medium effort',
+    { id:'winback', shipped:true, title:'Inactive User Win-Back Sequence', section:'fern', category:'Retention', status:'buildable', effort:'Medium effort',
       desc:'Automated email to churned/inactive free users, pulling from the main Fern Supabase user_data table.' },
-    { id:'metrics-digest', title:'Weekly Metrics Digest (internal)', section:'fern', category:'Internal Ops', status:'buildable', effort:'Low effort',
+    { id:'metrics-digest', shipped:true, title:'Weekly Metrics Digest (internal)', section:'fern', category:'Internal Ops', status:'buildable', effort:'Low effort',
       desc:'Signups, conversion, revenue — pulled automatically and emailed so the pro forma plan stays honestly tracked against reality, not just checked manually.' },
-    { id:'competitor-monitor', title:'Weekly Competitor Monitor', section:'fern', category:'Intelligence', status:'buildable', effort:'Low effort',
+    { id:'competitor-monitor', shipped:true, title:'Weekly Competitor Monitor', section:'fern', category:'Intelligence', status:'buildable', effort:'Low effort',
       desc:'Auto-search Instacart/Kroger/Cooklist for pricing or feature changes, AI-summarize, email a digest.' },
-    { id:'reddit-discovery', title:'Reddit Opportunity Discovery Digest', section:'fern', category:'Community', status:'buildable', effort:'Medium effort',
+    { id:'reddit-discovery', shipped:true, title:'Reddit Opportunity Discovery Digest', section:'fern', category:'Community', status:'buildable', effort:'Medium effort',
       desc:'Auto-scan r/Frugal and similar subs for relevant threads, AI-draft a suggested reply, email it for manual review and posting. Discovery is automated — posting stays human, since Reddit\'s anti-spam ML actively detects fully-autonomous posting.' },
 
     // ── blocked on something external ────────────────────────────
@@ -694,9 +700,9 @@
 
     // ══ BLOGGER ═══════════════════════════════════════════════════
     // ── buildable now ──────────────────────────────────────────────
-    { id:'blogger-spotlight', title:'Blogger Spotlight Content', section:'blogger', category:'Content & SEO', status:'buildable', effort:'Low effort',
+    { id:'blogger-spotlight', shipped:true, title:'Blogger Spotlight Content', section:'blogger', category:'Content & SEO', status:'buildable', effort:'Low effort',
       desc:'Auto-generate a "blogger of the week" feature pulling real stats (top earner, most saves) from Blogger Cookbook\'s own data.' },
-    { id:'blogger-digest', title:'Blogger Performance Digest', section:'blogger', category:'Retention', status:'buildable', effort:'Low effort',
+    { id:'blogger-digest', shipped:true, title:'Blogger Performance Digest', section:'blogger', category:'Retention', status:'buildable', effort:'Low effort',
       desc:'Automated email to the 2,400+ bloggers showing their stats/earnings — keeps them engaged, reuses this newsletter\'s existing send infrastructure.' },
 
     // ── blocked on something external ────────────────────────────
@@ -728,10 +734,12 @@
   function renderRoadmap() {
     // Stat counts
     const counts = { buildable:0, blocked:0, bigger:0, rejected:0 };
-    AUTOMATION_ROADMAP.forEach(item => counts[item.status]++);
+    let shippedCount = 0;
+    AUTOMATION_ROADMAP.forEach(item => { counts[item.status]++; if (item.shipped) shippedCount++; });
     const statsEl = document.getElementById('roadmap-stats');
     if (statsEl) {
-      statsEl.innerHTML = Object.keys(STATUS_META).map(status =>
+      statsEl.innerHTML = `<div class="roadmap-stat" style="border-color:rgba(109,191,126,.4)"><div class="rs-num" style="color:#6dbf7e">${shippedCount}</div><div class="rs-label">✅ Shipped</div></div>` +
+        Object.keys(STATUS_META).map(status =>
         `<div class="roadmap-stat ${status}"><div class="rs-num">${counts[status]}</div><div class="rs-label">${STATUS_META[status].emoji} ${STATUS_META[status].label}</div></div>`
       ).join('');
     }
@@ -755,23 +763,26 @@
   function _cardHtml(item) {
     const meta = STATUS_META[item.status];
     const priority = _getPriority(item.id);
-    return `<div class="rc-card ${item.status}">
+    return `<div class="rc-card ${item.status}${item.shipped ? ' is-shipped' : ''}">
         <div class="rc-main">
           <div class="rc-title-row">
             <span class="rc-title">${item.title}</span>
             <span class="rc-tag">${item.category}</span>
             <span class="rc-status ${item.status}">${meta.emoji} ${meta.label}</span>
+            ${item.shipped ? '<span class="rc-shipped">✅ Shipped</span>' : ''}
           </div>
           <div class="rc-desc">${item.desc}</div>
           <div class="rc-effort">${item.effort}</div>
         </div>
         <div class="rc-priority">
-          <select onchange="_setPriority('${item.id}', this.value)" ${item.status === 'rejected' ? 'disabled' : ''}>
+          ${item.shipped
+            ? '<span style="font-family:\'Space Mono\',monospace;font-size:10px;color:#6dbf7e;letter-spacing:.05em">✅ Live</span>'
+            : `<select onchange="_setPriority('${item.id}', this.value)" ${item.status === 'rejected' ? 'disabled' : ''}>
             <option value="none" ${priority==='none'?'selected':''}>No priority set</option>
             <option value="next" ${priority==='next'?'selected':''}>🟢 Build next</option>
             <option value="soon" ${priority==='soon'?'selected':''}>🟡 Build soon</option>
             <option value="later" ${priority==='later'?'selected':''}>⚪ Later</option>
-          </select>
+          </select>`}
         </div>
       </div>`;
   }
