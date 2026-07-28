@@ -126,5 +126,17 @@ export default async (req) => {
     return new Response(JSON.stringify(data), { headers });
   }
 
+  // POST trigger win-back batch (see send-winback.js — deliberately manual, not auto-cron)
+  if (action === "winback" && req.method === "POST") {
+    const siteUrl = process.env.URL || "https://cookbookai1.netlify.app";
+    const res = await fetch(`${siteUrl}/.netlify/functions/send-winback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret: process.env.CRON_SECRET }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return new Response(JSON.stringify(data), { headers });
+  }
+
   return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers });
 };
