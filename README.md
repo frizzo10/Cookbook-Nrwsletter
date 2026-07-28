@@ -70,6 +70,9 @@ Six of the eight "Buildable Now" items from the Growth Automation Roadmap, shipp
 | Weekly Competitor Monitor | `competitor-monitor.js` | Mon 9am UTC | Emails `ADMIN_ALERT_EMAIL`. Fetches Instacart/Kroger/Cooklist pages, AI diffs vs. last week's snapshot. Plain `fetch()`, not a real browser — heavily JS-rendered pages may return limited signal. |
 | Reddit Opportunity Discovery Digest | `generate-content-queue.js` (existing, extended) | Mon/Thu 10am UTC (existing) | Was already discovering+drafting; added the actual email notification step (`sendDigestEmail`) to `ADMIN_ALERT_EMAIL` so new drafts don't rely on remembering to check the admin panel. |
 
-**Not yet built:** Blogger Spotlight Content and Blogger Performance Digest — need the actual Supabase table/column names for blogger stats & emails (not guessed, to avoid emailing 2,400+ real bloggers off assumed schema).
+| Blogger Spotlight Content | `blogger-spotlight.js`, `get-blogger-spotlight.js` | Fri 8am UTC | Public page: `/blogger-spotlight.html`. Features whichever active blogger leads on `total_saves` (falls back to top earner) from the new `bloggers` table. |
+| Blogger Performance Digest | `blogger-digest.js` | 1st of month, 9am UTC | Emails every active blogger in the `bloggers` table their own real stats (recipes, saves, clicks, earnings). Separate audience from the newsletter subscriber list. |
+
+All 8 "Buildable Now" items from the roadmap are now shipped.
 
 No new env vars required — all six reuse `GROQ_API_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `FROM_EMAIL`, `CRON_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and `ADMIN_ALERT_EMAIL`, all already configured on this site.
