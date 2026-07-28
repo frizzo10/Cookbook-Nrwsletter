@@ -378,6 +378,7 @@
       <div class="action-row">
         <button class="action-btn" onclick="triggerGenerate()">⚡ Generate This Month's Issue</button>
         <button class="action-btn" onclick="triggerSend()">📨 Send to All Subscribers</button>
+        <button class="action-btn" onclick="triggerWinback()">💌 Send Win-Back Batch</button>
         <a href="/" target="_blank"><button class="action-btn">👁 View Live Site</button></a>
       </div>
       <p id="action-msg"></p>
@@ -638,6 +639,18 @@
       msg.textContent = `✓ Sent to ${data.sent} subscribers. ${data.failed ? `${data.failed} failed.` : ''}`;
     } else {
       msg.textContent = data.error || 'Done.';
+    }
+  }
+
+  async function triggerWinback() {
+    const msg = document.getElementById('action-msg');
+    if (!confirm('Send win-back emails to inactive Fern users? Capped at 25 per run, and each user only gets one every 45 days.')) return;
+    msg.innerHTML = '<span class="spinner"></span> Sending win-back batch…';
+    const data = await api('winback', 'POST', {});
+    if (data.sent !== undefined) {
+      msg.textContent = `✓ Sent ${data.sent} win-back email${data.sent === 1 ? '' : 's'}.${data.skippedNoEmail ? ` ${data.skippedNoEmail} skipped (no email found).` : ''}${data.failed ? ` ${data.failed} failed.` : ''}`;
+    } else {
+      msg.textContent = data.message || data.error || 'Done.';
     }
   }
 
