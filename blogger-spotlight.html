@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blogger of the Week — The Cultured Table</title>
+<meta name="description" content="This week's featured food blogger from Fern's Blogger Cookbook program.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Crimson+Pro:wght@400;600&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#1a1a1a; --warm:#fffdf5; --gold:#c8922a; --parchment:#f5f0e8; --border:#ede8dc; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--warm); font-family:'Crimson Pro', Georgia, serif; color:var(--ink); }
+  header { background:var(--ink); padding:36px 24px 28px; text-align:center; }
+  header .eyebrow { font-family:'Space Mono', monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin:0 0 10px; }
+  header h1 { font-family:'Playfair Display', serif; font-size:30px; color:var(--warm); margin:0; font-weight:700; }
+  nav.nav-strip { display:flex; justify-content:center; border-bottom:2px solid var(--gold); background:var(--parchment); flex-wrap:wrap; }
+  nav.nav-strip a { font-family:'Space Mono', monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink); text-decoration:none; padding:14px 22px; border-left:1px solid var(--border); }
+  nav.nav-strip a:hover { color:var(--gold); background:rgba(200,146,42,.06); }
+  main { max-width:600px; margin:0 auto; padding:48px 24px 80px; }
+  .avatar { width:88px; height:88px; border-radius:50%; object-fit:cover; margin:0 auto 20px; display:block; background:var(--parchment); }
+  .name { font-family:'Playfair Display', serif; font-size:26px; text-align:center; margin:0 0 4px; }
+  .headline { text-align:center; color:var(--gold); font-style:italic; font-size:16px; margin:0 0 28px; }
+  .stats { display:flex; justify-content:center; gap:28px; margin:0 0 32px; flex-wrap:wrap; }
+  .stat { text-align:center; }
+  .stat .n { font-family:'Playfair Display', serif; font-size:24px; }
+  .stat .l { font-family:'Space Mono', monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#999; }
+  .body p { font-size:16px; line-height:1.8; color:#444; }
+  .empty { text-align:center; padding:80px 20px; color:#999; }
+  footer { text-align:center; padding:28px; color:#aaa; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <p class="eyebrow">🌿 The Cultured Table</p>
+  <h1>Blogger of the Week</h1>
+</header>
+<nav class="nav-strip">
+  <a href="/">Newsletter</a>
+  <a href="/deals.html">Deals</a>
+  <a href="/#subscribe">Subscribe</a>
+</nav>
+<main id="main"><p class="empty">Loading…</p></main>
+<footer>Part of Fern's Blogger Cookbook program.</footer>
+<script>
+function esc(s){const d=document.createElement('div');d.textContent=String(s);return d.innerHTML;}
+async function load() {
+  const main = document.getElementById('main');
+  try {
+    const res = await fetch('/.netlify/functions/get-blogger-spotlight');
+    const data = await res.json();
+    if (!data.spotlight) { main.innerHTML = '<p class="empty">No spotlight published yet — check back soon.</p>'; return; }
+    const s = data.spotlight, b = s.blogger || {};
+    let html = '';
+    if (b.avatar_url) html += '<img class="avatar" src="' + esc(b.avatar_url) + '" alt="">';
+    html += '<p class="name">' + esc(b.name || 'This week\\'s blogger') + '</p>';
+    html += '<p class="headline">' + esc(s.headline || '') + '</p>';
+    html += '<div class="stats">';
+    html += '<div class="stat"><div class="n">' + esc(b.recipes_published ?? 0) + '</div><div class="l">Recipes</div></div>';
+    html += '<div class="stat"><div class="n">' + esc(b.total_saves ?? 0) + '</div><div class="l">Saves</div></div>';
+    html += '</div>';
+    html += '<div class="body">' + (s.body || '').split('\\n\\n').map(p => '<p>' + esc(p) + '</p>').join('') + '</div>';
+    if (b.website_url) html += '<p style="text-align:center;margin-top:24px"><a href="' + esc(b.website_url) + '" style="color:var(--gold)">Visit their site →</a></p>';
+    main.innerHTML = html;
+  } catch (e) {
+    main.innerHTML = '<p class="empty">Couldn\\'t load this week\\'s spotlight.</p>';
+  }
+}
+load();
+</script>
+</body>
+</html>
