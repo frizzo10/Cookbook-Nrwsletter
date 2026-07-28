@@ -158,6 +158,41 @@ Return ONLY the reply text, nothing else -- no quotes around it, no preamble.`;
   return drafts;
 }
 
+// ── Email digest: notify on new pending items so review doesn't rely on
+// someone remembering to open the admin panel. Sent via Resend to
+// ADMIN_ALERT_EMAIL, same env var pattern used elsewhere in this project.
+async function sendDigestEmail(newItems) {
+  const key = process.env.RESEND_API_KEY;
+  const to = process.env.ADMIN_ALERT_EMAIL;
+  if (!key || !to || newItems.length === 0) return;
+  const FROM = process.env.FROM_EMAIL || "newsletter@cookbookai1.netlify.app";
+  const siteUrl = process.env.URL || "https://cookbookainewsletter.netlify.app";
+
+  const rows = newItems.map(i => `
+    <div style="margin-bottom:18px;padding:14px 16px;background:#faf7f0;border-left:3px solid ${i.type === "reddit" ? "#7fb3d5" : "#c8a96e"};">
+      <p style="margin:0 0 4px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#999">${i.type === "reddit" ? "Reddit — " + i.group : "Facebook draft — " + i.group}</p>
+      <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#1a1a1a">${i.title}</p>
+      <p style="margin:0;font-size:14px;color:#555;line-height:1.6">${i.draft.slice(0, 220)}${i.draft.length > 220 ? "…" : ""}</p>
+      ${i.source_url ? `<p style="margin:8px 0 0"><a href="${i.source_url}" style="font-size:12px;color:#7fb3d5">View thread →</a></p>` : ""}
+    </div>`).join("");
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      from: `The Cultured Table <${FROM}>`,
+      to,
+      subject: `${newItems.length} new content draft${newItems.length === 1 ? "" : "s"} ready for review`,
+      html: `<div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#fffdf7;">
+        <p style="font-size:20px;color:#1a1a1a;margin:0 0 4px">Community Content Queue</p>
+        <p style="font-size:13px;color:#999;margin:0 0 24px">${newItems.length} new draft${newItems.length === 1 ? "" : "s"} pending review</p>
+        ${rows}
+        <p style="margin:24px 0 0"><a href="${siteUrl}/admin.html" style="display:inline-block;background:#1C3A1A;color:#F0E0B0;padding:.6rem 1.3rem;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">Review in Admin Panel →</a></p>
+      </div>`,
+    }),
+  }).catch(e => console.error("[content-queue] digest email failed:", e.message));
+}
+
 export default async (req) => {
   const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" };
   if (req.method === "OPTIONS") return new Response("", { status: 200, headers });
@@ -177,6 +212,8 @@ export default async (req) => {
     const trulyNew = newItems.filter((i) => !existingIds.has(i.id));
     const merged = [...trulyNew, ...existing].slice(0, 150); // sane cap
     await store.setJSON("items", merged);
+
+    await sendDigestEmail(trulyNew);
 
     return new Response(
       JSON.stringify({ success: true, generated: trulyNew.length, fb: fbDrafts.length, reddit: redditDrafts.length }),
