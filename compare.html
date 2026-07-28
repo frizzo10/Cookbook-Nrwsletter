@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="doc-title">Compare — The Cultured Table</title>
+<meta id="meta-desc" name="description" content="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Crimson+Pro:wght@400;600&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#1a1a1a; --warm:#fffdf5; --gold:#c8922a; --gold-light:#e8c97e; --parchment:#f5f0e8; --border:#ede8dc; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--warm); font-family:'Crimson Pro', Georgia, serif; color:var(--ink); }
+  header { background:var(--ink); padding:36px 24px 28px; text-align:center; }
+  header .eyebrow { font-family:'Space Mono', monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin:0 0 10px; }
+  header h1#brand { font-family:'Playfair Display', serif; font-size:28px; color:var(--warm); margin:0; font-weight:700; }
+  nav.nav-strip { display:flex; justify-content:center; gap:0; border-bottom:2px solid var(--gold); background:var(--parchment); flex-wrap:wrap; }
+  nav.nav-strip a { font-family:'Space Mono', monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink); text-decoration:none; padding:14px 22px; border-left:1px solid var(--border); }
+  nav.nav-strip a:hover { color:var(--gold); background:rgba(200,146,42,.06); }
+  main { max-width:680px; margin:0 auto; padding:48px 24px 80px; }
+  h2#h1 { font-family:'Playfair Display', serif; font-size:34px; margin:0 0 18px; line-height:1.2; }
+  .intro { font-size:18px; line-height:1.7; color:#444; margin:0 0 36px; }
+  section.block { margin-bottom:30px; }
+  section.block h3 { font-family:'Playfair Display', serif; font-size:21px; margin:0 0 8px; }
+  section.block p { font-size:16px; line-height:1.75; color:#444; margin:0; }
+  .cta { margin-top:48px; padding:32px; background:var(--ink); text-align:center; border-radius:4px; }
+  .cta h3 { font-family:'Playfair Display', serif; color:var(--warm); font-size:22px; margin:0 0 10px; }
+  .cta p { color:#ccc; font-size:15px; margin:0 0 20px; }
+  .cta a.btn { display:inline-block; background:var(--gold); color:var(--ink); padding:.7rem 1.6rem; border-radius:6px; text-decoration:none; font-weight:700; font-size:15px; }
+  .empty { text-align:center; padding:80px 20px; color:#999; }
+  footer { text-align:center; padding:28px; color:#aaa; font-size:12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">🌿 The Cultured Table</p>
+  <h1 id="brand">Fern</h1>
+</header>
+
+<nav class="nav-strip">
+  <a href="/">Newsletter</a>
+  <a href="/deals.html">Deals</a>
+  <a href="/#subscribe">Subscribe</a>
+  <a href="https://app.clickpickandcook.com" target="_blank">Get Fern</a>
+</nav>
+
+<main id="main"><p class="empty">Loading…</p></main>
+
+<footer>Written by Fern. <a href="https://app.clickpickandcook.com" style="color:var(--gold)">Try Fern free →</a></footer>
+
+<script>
+function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+
+async function load() {
+  const params = new URLSearchParams(location.search);
+  // Supports both /compare.html?slug=x directly and /compare/x rewritten via netlify.toml
+  let slug = params.get('slug');
+  if (!slug) {
+    const parts = location.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'compare' && parts[1]) slug = parts[1];
+  }
+  const main = document.getElementById('main');
+  if (!slug) { main.innerHTML = '<p class="empty">No page specified.</p>'; return; }
+
+  try {
+    const res = await fetch('/.netlify/functions/get-seo-page?slug=' + encodeURIComponent(slug));
+    const data = await res.json();
+    if (!data.page) { main.innerHTML = '<p class="empty">That page isn\\'t available yet.</p>'; return; }
+    const p = data.page;
+
+    document.getElementById('doc-title').textContent = p.meta_title || p.h1 || 'Fern';
+    document.getElementById('meta-desc').setAttribute('content', p.meta_description || '');
+
+    let html = '<h2 id="h1">' + esc(p.h1 || '') + '</h2>';
+    html += '<p class="intro">' + esc(p.intro || '') + '</p>';
+    (p.sections || []).forEach(s => {
+      html += '<section class="block"><h3>' + esc(s.heading || '') + '</h3><p>' + esc(s.body || '') + '</p></section>';
+    });
+    html += '<div class="cta"><h3>' + esc(p.cta_heading || 'Try Fern free') + '</h3><p>' + esc(p.cta_body || '') + '</p><a class="btn" href="https://app.clickpickandcook.com" target="_blank">Get Fern →</a></div>';
+    main.innerHTML = html;
+  } catch (e) {
+    main.innerHTML = '<p class="empty">Couldn\\'t load this page. Try refreshing.</p>';
+  }
+}
+load();
+</script>
+
+</body>
+</html>
