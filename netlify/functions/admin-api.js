@@ -138,5 +138,17 @@ export default async (req) => {
     return new Response(JSON.stringify(data), { headers });
   }
 
+  // POST trigger blogger discovery (search + qualify + draft outreach)
+  if (action === "blogger-discovery" && req.method === "POST") {
+    const siteUrl = process.env.URL || "https://cookbookai1.netlify.app";
+    const res = await fetch(`${siteUrl}/.netlify/functions/blogger-discovery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret: process.env.CRON_SECRET }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return new Response(JSON.stringify(data), { headers });
+  }
+
   return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers });
 };
