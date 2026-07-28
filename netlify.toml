@@ -11,6 +11,18 @@
 [functions."generate-content-queue"]
   timeout = 60
 
+[functions."generate-deals-digest"]
+  timeout = 60
+
+[functions."generate-seo-pages"]
+  timeout = 60
+
+[functions."competitor-monitor"]
+  timeout = 60
+
+[functions."metrics-digest"]
+  timeout = 30
+
 # Monthly cron — 1st of every month at 9am UTC
 [[scheduled_functions]]
   name = "generate-newsletter"
@@ -20,3 +32,32 @@
 [[scheduled_functions]]
   name = "generate-content-queue"
   cron = "0 10 * * 1,4"
+
+# Weekly — Mondays 8am UTC
+[[scheduled_functions]]
+  name = "metrics-digest"
+  cron = "0 8 * * 1"
+
+# Weekly — Mondays 9am UTC
+[[scheduled_functions]]
+  name = "competitor-monitor"
+  cron = "0 9 * * 1"
+
+# Weekly — Wednesdays 8am UTC
+[[scheduled_functions]]
+  name = "generate-deals-digest"
+  cron = "0 8 * * 3"
+
+# Monthly — 1st of every month, 7am UTC
+[[scheduled_functions]]
+  name = "generate-seo-pages"
+  cron = "0 7 1 * *"
+
+# Pretty URLs for SEO comparison pages: /compare/instacart-alternative
+# rewritten (not redirected) to the template page, so the address bar keeps
+# the clean URL search engines should index.
+[[redirects]]
+  from = "/compare/*"
+  to = "/compare.html"
+  status = 200
+
