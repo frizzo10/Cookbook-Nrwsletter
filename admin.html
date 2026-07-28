@@ -295,6 +295,7 @@
     }
     .cq-platform.fb { background: rgba(88,138,220,.18); color: #8ab0f0; }
     .cq-platform.reddit { background: rgba(224,112,96,.15); color: #ff7050; }
+    .cq-platform.blogger_outreach { background: rgba(200,146,42,.18); color: var(--gold-light); }
     .cq-group { font-size: 12px; color: var(--gold-light); font-family: 'Space Mono', monospace; }
     .cq-title { font-size: 14px; color: var(--warm); font-style: italic; flex: 1; min-width: 180px; }
     .cq-draft {
@@ -360,6 +361,7 @@
       <p class="section-head">Community Content Queue</p>
       <div class="cq-toolbar">
         <button class="cq-generate-btn" id="cq-generate-btn" onclick="generateContentQueue()">✦ Generate New Batch Now</button>
+        <button class="cq-generate-btn" id="cq-blogger-btn" onclick="discoverBloggers()">🔍 Discover Bloggers Now</button>
         <span class="cq-msg" id="cq-msg"></span>
       </div>
       <p style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:16px;max-width:640px">
@@ -706,9 +708,9 @@
       desc:'Automated email to the 2,400+ bloggers showing their stats/earnings — keeps them engaged, reuses this newsletter\'s existing send infrastructure.' },
 
     // ── blocked on something external ────────────────────────────
-    { id:'blogger-discovery', title:'Automated Blogger Discovery', section:'blogger', category:'Acquisition', status:'blocked', effort:'Medium effort',
+    { id:'blogger-discovery', shipped:true, title:'Automated Blogger Discovery', section:'blogger', category:'Acquisition', status:'blocked', effort:'Medium effort',
       desc:'Technically buildable, but needs a search API key (Google Custom Search or similar) that isn\'t set up yet.' },
-    { id:'blogger-outreach', title:'Automated Blogger Outreach Emails', section:'blogger', category:'Acquisition', status:'blocked', effort:'Medium effort',
+    { id:'blogger-outreach', shipped:true, title:'Automated Blogger Outreach Emails', section:'blogger', category:'Acquisition', status:'blocked', effort:'Medium effort',
       desc:'Same blocker as discovery, plus a real risk: routing cold outreach through this newsletter\'s email relay could hurt its sender reputation and get the newsletter itself flagged as spam. Needs its own dedicated email setup.' },
   ];
 
@@ -763,20 +765,21 @@
   function _cardHtml(item) {
     const meta = STATUS_META[item.status];
     const priority = _getPriority(item.id);
+    const builtButBlocked = item.shipped && item.status === 'blocked';
     return `<div class="rc-card ${item.status}${item.shipped ? ' is-shipped' : ''}">
         <div class="rc-main">
           <div class="rc-title-row">
             <span class="rc-title">${item.title}</span>
             <span class="rc-tag">${item.category}</span>
             <span class="rc-status ${item.status}">${meta.emoji} ${meta.label}</span>
-            ${item.shipped ? '<span class="rc-shipped">✅ Shipped</span>' : ''}
+            ${item.shipped ? `<span class="rc-shipped">${builtButBlocked ? '🛠 Built — needs config' : '✅ Shipped'}</span>` : ''}
           </div>
           <div class="rc-desc">${item.desc}</div>
           <div class="rc-effort">${item.effort}</div>
         </div>
         <div class="rc-priority">
           ${item.shipped
-            ? '<span style="font-family:\'Space Mono\',monospace;font-size:10px;color:#6dbf7e;letter-spacing:.05em">✅ Live</span>'
+            ? `<span style="font-family:'Space Mono',monospace;font-size:10px;color:${builtButBlocked ? 'var(--gold-light)' : '#6dbf7e'};letter-spacing:.05em">${builtButBlocked ? '⏳ Waiting on config' : '✅ Live'}</span>`
             : `<select onchange="_setPriority('${item.id}', this.value)" ${item.status === 'rejected' ? 'disabled' : ''}>
             <option value="none" ${priority==='none'?'selected':''}>No priority set</option>
             <option value="next" ${priority==='next'?'selected':''}>🟢 Build next</option>
@@ -852,9 +855,11 @@
       return;
     }
     listEl.innerHTML = items.map(item => {
-      const platformLabel = item.type === 'fb' ? 'Facebook' : 'Reddit';
+      const PLATFORM_LABELS = { fb: 'Facebook', reddit: 'Reddit', blogger_outreach: 'Blogger Outreach' };
+      const platformLabel = PLATFORM_LABELS[item.type] || item.type;
+      const sourceLinkText = item.type === 'blogger_outreach' ? 'View their site' : 'View original thread';
       const sourceHtml = item.source_url
-        ? `<div class="cq-source">🔗 <a href="${item.source_url}" target="_blank" rel="noopener">View original thread</a></div>`
+        ? `<div class="cq-source">🔗 <a href="${item.source_url}" target="_blank" rel="noopener">${sourceLinkText}</a></div>`
         : '';
       const actionsHtml = item.status === 'pending'
         ? `<button class="cq-btn" onclick="copyDraft('${item.id}')">📋 Copy Draft</button>
@@ -885,6 +890,25 @@
       const data = await res.json();
       if (data.success) {
         msg.textContent = `✓ Added ${data.generated} new item${data.generated === 1 ? '' : 's'} (${data.fb} Facebook, ${data.reddit} Reddit).`;
+        await loadContentQueue();
+      } else {
+        msg.textContent = data.error || 'Something went wrong.';
+      }
+    } catch (e) {
+      msg.textContent = 'Request failed — try again.';
+    }
+    btn.disabled = false;
+  }
+
+  async function discoverBloggers() {
+    const btn = document.getElementById('cq-blogger-btn');
+    const msg = document.getElementById('cq-msg');
+    btn.disabled = true;
+    msg.innerHTML = '<span class="spinner"></span> Searching and qualifying candidates… (can take a minute)';
+    try {
+      const data = await api('blogger-discovery', 'POST', {});
+      if (data.success) {
+        msg.textContent = `✓ Checked ${data.checked} candidates, drafted ${data.drafted} outreach email${data.drafted === 1 ? '' : 's'}.`;
         await loadContentQueue();
       } else {
         msg.textContent = data.error || 'Something went wrong.';
