@@ -59,7 +59,7 @@ function supaFetch(method, path, body) {
       Prefer: "return=representation,resolution=merge-duplicates",
     },
     body: body ? JSON.stringify(body) : undefined,
-  }).then((r) => r.json());
+  }).then(async (r) => ({ ok: r.ok, status: r.status, body: await r.json().catch(() => null) }));
 }
 
 async function findFernUser(email) {
@@ -70,8 +70,17 @@ async function findFernUser(email) {
 }
 
 async function doSave(userId, recipe) {
-  const rows = await supaFetch("GET", `/rest/v1/user_data?user_id=eq.${userId}&limit=1`);
-  const row = rows?.[0] || {};
+  // Was previously: supaFetch resolved with just the parsed body, no status
+  // check anywhere -- a failed Supabase write (bad FK, RLS, schema
+  // mismatch, anything) looked identical to a successful one, and this
+  // function always returned as if the save worked. Now checks both calls
+  // and throws a real error on failure, which the handler below turns into
+  // an actual error response instead of a false "saved!" message.
+  const getRes = await supaFetch("GET", `/rest/v1/user_data?user_id=eq.${userId}&limit=1`);
+  if (!getRes.ok) {
+    throw new Error("Could not load your Fern data: " + (getRes.body?.message || `status ${getRes.status}`));
+  }
+  const row = getRes.body?.[0] || {};
   const currentBooks = row.books || [];
 
   const newRecipe = {
@@ -93,7 +102,7 @@ async function doSave(userId, recipe) {
   if (alreadySaved) return { alreadySaved: true, title: newRecipe.title };
 
   const updatedBooks = [...currentBooks, newRecipe];
-  await supaFetch("POST", "/rest/v1/user_data?on_conflict=user_id", {
+  const postRes = await supaFetch("POST", "/rest/v1/user_data?on_conflict=user_id", {
     user_id: userId,
     saved: row.saved || [],
     books: updatedBooks,
@@ -107,6 +116,9 @@ async function doSave(userId, recipe) {
     activities: row.activities || [],
     updated_at: new Date().toISOString(),
   });
+  if (!postRes.ok) {
+    throw new Error("Save failed: " + (postRes.body?.message || `status ${postRes.status}`));
+  }
   return { alreadySaved: false, title: newRecipe.title };
 }
 
@@ -169,7 +181,13 @@ export default async (req) => {
       await pendingStore.setJSON(email, { ...pending, attempts });
       return new Response(JSON.stringify({ error: "That code is invalid or expired. Request a new one." }), { status: 401, headers });
     }
-    const result = await doSave(user.id, pending.recipe);
+    let result;
+    try {
+      result = await doSave(user.id, pending.recipe);
+    } catch (e) {
+      console.error("[save-to-cookbook] doSave failed:", e.message);
+      return new Response(JSON.stringify({ error: "We verified your code, but saving the recipe failed. Please try again." }), { status: 502, headers });
+    }
     await pendingStore.delete(email).catch(() => {});
     return new Response(
       JSON.stringify({
