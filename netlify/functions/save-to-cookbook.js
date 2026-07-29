@@ -63,10 +63,38 @@ function supaFetch(method, path, body) {
 }
 
 async function findFernUser(email) {
-  const authRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}`, {
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-  }).then((r) => r.json());
-  return authRes?.users?.[0] || null;
+  // THE REAL BUG: Supabase's admin users endpoint does NOT support
+  // server-side filtering by the ?email= query param -- this is a
+  // documented, longstanding Supabase limitation (see
+  // github.com/supabase/supabase/issues/29832). The old code here sent
+  // ?email=<address> and just grabbed users[0] from whatever came back,
+  // which is the FIRST user in the whole project by default pagination
+  // order -- completely ignoring the email that was actually submitted.
+  // Every "successful" save was very likely writing into a different,
+  // essentially random Fern account, not the one whose email was entered.
+  // Fixed by paginating through all users and matching client-side,
+  // exact + case-insensitive, same safe pattern already used in
+  // metrics-digest.js in this repo.
+  const target = email.trim().toLowerCase();
+  let page = 1;
+  const perPage = 1000;
+  const maxPages = 10; // safety cap, matches metrics-digest.js
+  while (page <= maxPages) {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=${perPage}`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    });
+    if (!res.ok) {
+      console.error("[save-to-cookbook] findFernUser: admin users fetch failed:", res.status);
+      return null;
+    }
+    const data = await res.json();
+    const users = data.users || [];
+    const match = users.find(u => (u.email || "").trim().toLowerCase() === target);
+    if (match) return match;
+    if (users.length < perPage) break; // last page
+    page++;
+  }
+  return null;
 }
 
 async function doSave(userId, recipe) {
