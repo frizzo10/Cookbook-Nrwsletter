@@ -21,7 +21,7 @@ export default async (req) => {
   await store.setJSON("list", list);
 
   return new Response(
-    html("You're In!", `You're now subscribed to The Cultured Table. Your first personalized issue arrives on the 1st. <a href="https://cookbookai1.netlify.app" style="color:#c8a96e">Explore the latest issue →</a>`),
+    html("You're In!", `You're now subscribed to The Cultured Table. Your first personalized issue arrives on the 1st. <a href="https://cookbookainewsletter.netlify.app" style="color:#c8a96e">Explore the latest issue →</a>`),
     { headers: { "Content-Type": "text/html" } }
   );
 };
