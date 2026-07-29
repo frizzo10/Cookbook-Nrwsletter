@@ -114,7 +114,7 @@ function buildEmailHTML(nl, sub) {
   const firstName = (sub.name || "").split(" ")[0] || "";
   const greeting = firstName ? `for ${firstName}` : "";
 
-  const SITE_URL = process.env.URL || "https://cookbookai1.netlify.app";
+  const SITE_URL = process.env.URL || "https://cookbookainewsletter.netlify.app";
   const monthNumbers = { January:1, February:2, March:3, April:4, May:5, June:6, July:7, August:8, September:9, October:10, November:11, December:12 };
   const issueKey = nl.year && monthNumbers[nl.month]
     ? `${nl.year}-${String(monthNumbers[nl.month]).padStart(2, "0")}`
@@ -184,7 +184,7 @@ function buildEmailHTML(nl, sub) {
       <p style="font-size:12px;color:#aaa;margin:0 0 8px">You're receiving this because you subscribed to The Cultured Table.</p>
       <p style="font-size:12px;color:#aaa;margin:0">
         <a href="{{unsubscribe_url}}" style="color:#c8a96e;text-decoration:none">Unsubscribe</a> · 
-        <a href="https://cookbookai1.netlify.app" style="color:#c8a96e;text-decoration:none">View in browser</a>
+        <a href="https://cookbookainewsletter.netlify.app" style="color:#c8a96e;text-decoration:none">View in browser</a>
       </p>
     </div>
   </div>
@@ -206,7 +206,7 @@ export default async (req) => {
   if (!nl) return new Response(JSON.stringify({ error: "Newsletter not found" }), { status: 404 });
 
   const RESEND_KEY = process.env.RESEND_API_KEY;
-  const FROM = process.env.FROM_EMAIL || "newsletter@cookbookai1.netlify.app";
+  const FROM = process.env.FROM_EMAIL || "newsletter@clickpickandcook.com";
 
   // ── Test send: exactly one address, no subscriber list touched ──────
   if (body.testEmail) {
@@ -258,7 +258,7 @@ export default async (req) => {
 
       const html = buildEmailHTML(personalNl, sub).replace(
         "{{unsubscribe_url}}",
-        `https://cookbookai1.netlify.app/.netlify/functions/unsubscribe?email=${encodeURIComponent(sub.email)}&token=${sub.token}`
+        `https://cookbookainewsletter.netlify.app/.netlify/functions/unsubscribe?email=${encodeURIComponent(sub.email)}&token=${sub.token}`
       );
 
       const firstName = (sub.name || "").split(" ")[0];
