@@ -184,8 +184,25 @@ export default async (req) => {
   const verifyCode = String(crypto.randomInt(100000, 999999));
   await pendingStore.setJSON(email, { code: verifyCode, recipe, expires: Date.now() + CODE_TTL_MS });
 
-  if (RESEND_KEY) {
-    await fetch("https://api.resend.com/emails", {
+  // Was previously: fire the Resend request, swallow any failure with
+  // .catch(()=>{}), never check the response for an error -- then
+  // unconditionally tell the user "we sent a code" regardless of what
+  // actually happened. If RESEND_API_KEY was missing, or Resend rejected
+  // the send (bad from-domain, rate limit, invalid recipient, etc.), the
+  // user got told it worked with nothing to explain why nothing arrived.
+  // Now actually checks the send succeeded before claiming it did.
+  if (!RESEND_KEY) {
+    console.error("[save-to-cookbook] RESEND_API_KEY not configured -- cannot send verification code");
+    return new Response(
+      JSON.stringify({ error: "Email delivery isn't configured right now. Please try again later or contact support." }),
+      { status: 500, headers }
+    );
+  }
+
+  let sendOk = false;
+  let sendErrDetail = "";
+  try {
+    const resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_KEY}` },
       body: JSON.stringify({
@@ -198,7 +215,24 @@ export default async (req) => {
           <p style="color:#999;font-size:13px">This code expires in 15 minutes. If you didn't request this, you can ignore it.</p>
         </div>`,
       }),
-    }).catch(() => {});
+    });
+    if (resendRes.ok) {
+      sendOk = true;
+    } else {
+      const errBody = await resendRes.json().catch(() => ({}));
+      sendErrDetail = errBody.message || `Resend returned status ${resendRes.status}`;
+    }
+  } catch (e) {
+    sendErrDetail = e.message;
+  }
+
+  if (!sendOk) {
+    console.error("[save-to-cookbook] Resend send failed:", sendErrDetail);
+    await pendingStore.delete(email).catch(() => {});
+    return new Response(
+      JSON.stringify({ error: "We couldn't send the verification email. Please try again in a moment." }),
+      { status: 502, headers }
+    );
   }
 
   return new Response(
