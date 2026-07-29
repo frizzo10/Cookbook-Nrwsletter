@@ -125,8 +125,8 @@ export default async (req) => {
   // to the real send list until they click this link. Without this,
   // anyone could enter a stranger's email and start sending them mail. ──
   const RESEND_KEY = process.env.RESEND_API_KEY;
-  const FROM = process.env.FROM_EMAIL || "newsletter@cookbookai1.netlify.app";
-  const SITE_URL = process.env.URL || "https://cookbookai1.netlify.app";
+  const FROM = process.env.FROM_EMAIL || "newsletter@clickpickandcook.com";
+  const SITE_URL = process.env.URL || "https://cookbookainewsletter.netlify.app";
   const firstName = name.split(" ")[0] || "there";
   const confirmUrl = `${SITE_URL}/.netlify/functions/confirm-subscribe?email=${encodeURIComponent(email)}&token=${confirmToken}`;
 
