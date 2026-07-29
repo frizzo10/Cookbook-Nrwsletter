@@ -119,7 +119,7 @@ export default async (req) => {
     const key = process.env.RESEND_API_KEY;
     const to = process.env.ADMIN_ALERT_EMAIL;
     if (key && to) {
-      const FROM = process.env.FROM_EMAIL || "newsletter@cookbookai1.netlify.app";
+      const FROM = process.env.FROM_EMAIL || "newsletter@clickpickandcook.com";
       await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
