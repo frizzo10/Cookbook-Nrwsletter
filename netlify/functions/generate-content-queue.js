@@ -165,7 +165,7 @@ async function sendDigestEmail(newItems) {
   const key = process.env.RESEND_API_KEY;
   const to = process.env.ADMIN_ALERT_EMAIL;
   if (!key || !to || newItems.length === 0) return;
-  const FROM = process.env.FROM_EMAIL || "newsletter@cookbookai1.netlify.app";
+  const FROM = process.env.FROM_EMAIL || "newsletter@clickpickandcook.com";
   const siteUrl = process.env.URL || "https://cookbookainewsletter.netlify.app";
 
   const rows = newItems.map(i => `
