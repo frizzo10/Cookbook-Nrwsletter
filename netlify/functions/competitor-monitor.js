@@ -127,7 +127,7 @@ In 2-3 sentences, summarize what's notable here for a competing grocery-AI start
   const key = process.env.RESEND_API_KEY;
   const to = process.env.ADMIN_ALERT_EMAIL;
   if (key && to) {
-    const FROM = process.env.FROM_EMAIL || "newsletter@cookbookai1.netlify.app";
+    const FROM = process.env.FROM_EMAIL || "newsletter@clickpickandcook.com";
     const rows = results.map(r => `
       <div style="margin-bottom:18px;padding:14px 16px;background:#faf7f0;border-left:3px solid ${r.ok ? "#6dbf7e" : "#e07060"}">
         <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#1a1a1a">${r.name}</p>
