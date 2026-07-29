@@ -896,10 +896,12 @@
   // ── Save to Fern ──
   let _pendingRecipe = null;
   let _awaitingCode = false;
+  let _pendingEmail = ''; // cached separately from the input -- see confirmSave() note below
 
   window.openFernModal = function(index) {
     _pendingRecipe = index;
     _awaitingCode = false;
+    _pendingEmail = '';
     document.getElementById('fern-modal-msg').textContent = '';
     document.getElementById('fern-email').value = '';
     document.getElementById('fern-email').style.display = '';
@@ -928,12 +930,22 @@
     document.getElementById('fern-modal').classList.remove('open');
     _pendingRecipe = null;
     _awaitingCode = false;
+    _pendingEmail = '';
   };
 
   window.confirmSave = async function() {
-    const email = document.getElementById('fern-email').value.trim();
+    const emailFieldVal = document.getElementById('fern-email').value.trim();
     const code = document.getElementById('fern-code').value.trim();
     const msg = document.getElementById('fern-modal-msg');
+    // Was previously: always re-read #fern-email's value directly, even
+    // after switching to the code-entry step, where that field is set to
+    // display:none. Some mobile browsers can lose a hidden input's value
+    // (autofill/privacy behavior varies), which would silently fail the
+    // very first check below with zero visible feedback -- matching
+    // exactly "I put in the code and nothing happens." Now the email is
+    // cached the moment step 1 succeeds, and step 2 uses that cached
+    // value instead of re-reading the hidden field.
+    const email = _awaitingCode ? _pendingEmail : emailFieldVal;
     if (!email) { msg.textContent = 'Please enter your email.'; return; }
     if (_awaitingCode && !code) { msg.textContent = 'Please enter the code we sent you.'; return; }
 
@@ -963,6 +975,7 @@
       } else if (data.needsVerification) {
         // Step 1 succeeded — now show the code field, hide Turnstile (not needed for code entry)
         _awaitingCode = true;
+        _pendingEmail = email;
         document.getElementById('fern-email').style.display = 'none';
         document.getElementById('fern-code').style.display = '';
         document.getElementById('turnstile-save').style.display = 'none';
