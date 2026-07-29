@@ -46,7 +46,7 @@ export default async (req) => {
     return new Response(JSON.stringify({ error: "Supabase not configured" }), { status: 500, headers });
   }
   const key = process.env.RESEND_API_KEY;
-  const FROM = process.env.FROM_EMAIL || "newsletter@cookbookai1.netlify.app";
+  const FROM = process.env.FROM_EMAIL || "newsletter@clickpickandcook.com";
   if (!key) return new Response(JSON.stringify({ error: "RESEND_API_KEY not configured" }), { status: 500, headers });
 
   try {
