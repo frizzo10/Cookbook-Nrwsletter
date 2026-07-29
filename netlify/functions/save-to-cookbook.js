@@ -212,16 +212,6 @@ export default async (req) => {
   // ── Step 2: code provided — verify and actually save ──────────────
   if (code) {
     const pending = await pendingStore.get(email, { type: "json" }).catch(() => null);
-    console.log("[save-to-cookbook] DIAGNOSTIC verify attempt:", JSON.stringify({
-      email,
-      submittedCode: String(code).trim(),
-      pendingFound: !!pending,
-      pendingCode: pending ? pending.code : null,
-      pendingExpires: pending ? new Date(pending.expires).toISOString() : null,
-      now: new Date().toISOString(),
-      expired: pending ? Date.now() > pending.expires : null,
-      pendingRecipeTitle: pending?.recipe?.name || null,
-    }));
     if (!pending || Date.now() > pending.expires) {
       return new Response(JSON.stringify({ error: "That code is invalid or expired. Request a new one." }), { status: 401, headers });
     }
@@ -257,12 +247,6 @@ export default async (req) => {
   // ── Step 1: no code yet — send a verification code ────────────────
   const verifyCode = String(crypto.randomInt(100000, 999999));
   await pendingStore.setJSON(email, { code: verifyCode, recipe, expires: Date.now() + CODE_TTL_MS });
-  console.log("[save-to-cookbook] DIAGNOSTIC code generated:", JSON.stringify({
-    email,
-    code: verifyCode,
-    expiresAt: new Date(Date.now() + CODE_TTL_MS).toISOString(),
-    recipeTitle: recipe?.name || null,
-  }));
 
   // Was previously: fire the Resend request, swallow any failure with
   // .catch(()=>{}), never check the response for an error -- then
