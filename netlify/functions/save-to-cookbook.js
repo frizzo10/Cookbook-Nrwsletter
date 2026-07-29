@@ -81,11 +81,33 @@ async function doSave(userId, recipe) {
     throw new Error("Could not load your Fern data: " + (getRes.body?.message || `status ${getRes.status}`));
   }
   const row = getRes.body?.[0] || {};
+  const currentSaved = row.saved || [];
   const currentBooks = row.books || [];
+
+  // THE REAL BUG: this used to push a raw recipe object directly into
+  // `books`. In Fern's actual schema (confirmed against the main app's own
+  // save-recipe flow), `books` holds named COOKBOOK COLLECTIONS --
+  // {id, name, created} -- not individual recipes at all. Individual saved
+  // recipes live in a separate `saved` array, each one linked to a cookbook
+  // via a `_bookId` field. That's why the write always reported success
+  // (Supabase happily stores whatever shape you send to a jsonb column) but
+  // the recipe never showed up anywhere in the app -- it was sitting in the
+  // wrong array, in the wrong shape, and the Cookbooks page had no reason
+  // to ever look at it.
+  let defaultBook = currentBooks.find((b) => b.name === "My Recipes");
+  const updatedBooks = defaultBook ? currentBooks : [...currentBooks, (defaultBook = { id: "cb_" + Date.now(), name: "My Recipes", created: new Date().toLocaleDateString() })];
+
+  const title = String(recipe.name || "").slice(0, 200);
+  const alreadySaved = currentSaved.some((r) => r.title === title);
+  if (alreadySaved) return { alreadySaved: true, title };
 
   const newRecipe = {
     _id: `newsletter_${Date.now()}`,
-    title: String(recipe.name || "").slice(0, 200),
+    _bookId: defaultBook.id,
+    _cuisine: "",
+    _mealType: "",
+    _saved: new Date().toLocaleDateString(),
+    title,
     description: String(recipe.description || "").slice(0, 2000),
     ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.slice(0, 60).map(i => String(i).slice(0, 300)) : [],
     instructions: Array.isArray(recipe.instructions) ? recipe.instructions.slice(0, 60).map(i => String(i).slice(0, 1000)) : [],
@@ -94,17 +116,13 @@ async function doSave(userId, recipe) {
     servings: Number.isFinite(+recipe.servings) ? +recipe.servings : 4,
     tip: String(recipe.tip || "").slice(0, 500),
     source: "The Cultured Table Newsletter",
-    saved_at: new Date().toISOString(),
     tags: ["newsletter", "cultured-table"],
   };
 
-  const alreadySaved = currentBooks.some((b) => b.title === newRecipe.title);
-  if (alreadySaved) return { alreadySaved: true, title: newRecipe.title };
-
-  const updatedBooks = [...currentBooks, newRecipe];
+  const updatedSaved = [...currentSaved, newRecipe];
   const postRes = await supaFetch("POST", "/rest/v1/user_data?on_conflict=user_id", {
     user_id: userId,
-    saved: row.saved || [],
+    saved: updatedSaved,
     books: updatedBooks,
     meal_plan: row.meal_plan || {},
     shopping: row.shopping || [],
@@ -119,7 +137,7 @@ async function doSave(userId, recipe) {
   if (!postRes.ok) {
     throw new Error("Save failed: " + (postRes.body?.message || `status ${postRes.status}`));
   }
-  return { alreadySaved: false, title: newRecipe.title };
+  return { alreadySaved: false, title };
 }
 
 export default async (req) => {
