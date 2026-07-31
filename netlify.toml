@@ -29,6 +29,9 @@
 [functions."blogger-digest"]
   timeout = 60
 
+[functions."blogger-industry-digest"]
+  timeout = 60
+
 [functions."blogger-discovery"]
   timeout = 60
 
@@ -72,6 +75,12 @@
   name = "blogger-digest"
   cron = "0 9 1 * *"
 
+# Monthly — 1st of every month, 9am UTC — same cron as Cultured Table's
+# generate-newsletter and blogger-digest, per explicit request
+[[scheduled_functions]]
+  name = "blogger-industry-digest"
+  cron = "0 9 1 * *"
+
 # Weekly — Tuesdays 10am UTC
 [[scheduled_functions]]
   name = "blogger-discovery"
@@ -84,4 +93,3 @@
   from = "/compare/*"
   to = "/compare.html"
   status = 200
-
