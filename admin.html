@@ -392,6 +392,17 @@
       <p id="action-msg"></p>
     </div>
 
+    <!-- Blogger Program Controls -->
+    <div class="section">
+      <p class="section-head">Blogger Program Controls</p>
+      <div class="action-row">
+        <button class="action-btn" onclick="triggerBloggerDigest()">📊 Send Performance Digest</button>
+        <button class="action-btn" onclick="triggerBloggerIndustryDigest()">📰 Send Industry Trends Digest</button>
+        <button class="action-btn" onclick="triggerBloggerSpotlight()">🌟 Generate Spotlight Content</button>
+      </div>
+      <p id="blogger-action-msg"></p>
+    </div>
+
     <!-- System Health -->
     <div class="section">
       <p class="section-head">System Health</p>
@@ -660,6 +671,37 @@
     } else {
       msg.textContent = data.message || data.error || 'Done.';
     }
+  }
+
+  async function triggerBloggerDigest() {
+    const msg = document.getElementById('blogger-action-msg');
+    if (!confirm('Send the personal performance digest to all active bloggers?')) return;
+    msg.innerHTML = '<span class="spinner"></span> Sending performance digest…';
+    const data = await api('blogger-digest', 'POST', {});
+    if (data.sent !== undefined) {
+      msg.textContent = `✓ Sent to ${data.sent} bloggers.${data.failed ? ` ${data.failed} failed.` : ''}`;
+    } else {
+      msg.textContent = data.error || 'Done.';
+    }
+  }
+
+  async function triggerBloggerIndustryDigest() {
+    const msg = document.getElementById('blogger-action-msg');
+    if (!confirm('Send the industry trends digest to all active bloggers?')) return;
+    msg.innerHTML = '<span class="spinner"></span> Sending industry digest…';
+    const data = await api('blogger-industry-digest', 'POST', {});
+    if (data.sent !== undefined) {
+      msg.textContent = `✓ Sent to ${data.sent} bloggers.${data.failed ? ` ${data.failed} failed.` : ''}`;
+    } else {
+      msg.textContent = data.error || 'Done.';
+    }
+  }
+
+  async function triggerBloggerSpotlight() {
+    const msg = document.getElementById('blogger-action-msg');
+    msg.innerHTML = '<span class="spinner"></span> Generating spotlight content…';
+    const data = await api('blogger-spotlight', 'POST', {});
+    msg.textContent = data.message || data.error || 'Done.';
   }
 
   // ══════════════════════════════════════════════════════════════════
