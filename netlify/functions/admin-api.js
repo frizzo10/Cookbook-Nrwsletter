@@ -104,7 +104,7 @@ export default async (req) => {
 
   // POST trigger generate
   if (action === "generate" && req.method === "POST") {
-    const siteUrl = process.env.URL || "https://cookbookai1.netlify.app";
+    const siteUrl = process.env.URL || "https://cookbookainewsletter.netlify.app";
     const res = await fetch(`${siteUrl}/.netlify/functions/generate-newsletter`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -116,7 +116,7 @@ export default async (req) => {
 
   // POST trigger send
   if (action === "send" && req.method === "POST") {
-    const siteUrl = process.env.URL || "https://cookbookai1.netlify.app";
+    const siteUrl = process.env.URL || "https://cookbookainewsletter.netlify.app";
     const res = await fetch(`${siteUrl}/.netlify/functions/send-newsletter`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -128,7 +128,7 @@ export default async (req) => {
 
   // POST trigger win-back batch (see send-winback.js — deliberately manual, not auto-cron)
   if (action === "winback" && req.method === "POST") {
-    const siteUrl = process.env.URL || "https://cookbookai1.netlify.app";
+    const siteUrl = process.env.URL || "https://cookbookainewsletter.netlify.app";
     const res = await fetch(`${siteUrl}/.netlify/functions/send-winback`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -140,8 +140,44 @@ export default async (req) => {
 
   // POST trigger blogger discovery (search + qualify + draft outreach)
   if (action === "blogger-discovery" && req.method === "POST") {
-    const siteUrl = process.env.URL || "https://cookbookai1.netlify.app";
+    const siteUrl = process.env.URL || "https://cookbookainewsletter.netlify.app";
     const res = await fetch(`${siteUrl}/.netlify/functions/blogger-discovery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret: process.env.CRON_SECRET }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return new Response(JSON.stringify(data), { headers });
+  }
+
+  // POST trigger blogger performance digest (personal stats email)
+  if (action === "blogger-digest" && req.method === "POST") {
+    const siteUrl = process.env.URL || "https://cookbookainewsletter.netlify.app";
+    const res = await fetch(`${siteUrl}/.netlify/functions/blogger-digest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret: process.env.CRON_SECRET }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return new Response(JSON.stringify(data), { headers });
+  }
+
+  // POST trigger blogger industry trends digest
+  if (action === "blogger-industry-digest" && req.method === "POST") {
+    const siteUrl = process.env.URL || "https://cookbookainewsletter.netlify.app";
+    const res = await fetch(`${siteUrl}/.netlify/functions/blogger-industry-digest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ secret: process.env.CRON_SECRET }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return new Response(JSON.stringify(data), { headers });
+  }
+
+  // POST trigger blogger spotlight content generation
+  if (action === "blogger-spotlight" && req.method === "POST") {
+    const siteUrl = process.env.URL || "https://cookbookainewsletter.netlify.app";
+    const res = await fetch(`${siteUrl}/.netlify/functions/blogger-spotlight`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ secret: process.env.CRON_SECRET }),
